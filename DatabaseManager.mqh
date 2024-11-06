@@ -1,8 +1,14 @@
 // DatabaseManager.mqh
+
 #ifndef __DATABASEMANAGER_MQH__
 #define __DATABASEMANAGER_MQH__
 
 #include "DatabaseImports.mqh"
+
+// Import ShellExecute function from shell32.dll for opening CSV in Excel
+#import "shell32.dll"
+int ShellExecuteW(int hwnd, string Operation, string File, string Parameters, string Directory, int ShowCmd);
+#import
 
 class CDatabaseManager
 {
@@ -55,12 +61,9 @@ public:
     bool ExecuteSQLQuery(const string &query, string &errorMsg)
     {
         char errmsg[256];
-
-        // Convert the string 'query' to a null-terminated char array
-        char queryCharArray[4096]; // Ensure this size is sufficient for your queries
+        char queryCharArray[4096]; 
         StringToCharArray(query, queryCharArray, 0, StringLen(query) + 1);
 
-        // Call ExecuteSQL with the char array
         int execResult = ExecuteSQL(m_dbHandle, queryCharArray, errmsg, sizeof(errmsg));
         errorMsg = CharArrayToString(errmsg);
         return (execResult == 0);
@@ -70,16 +73,12 @@ public:
     bool CreateTables()
     {
         string errorMsg;
-        // Create 'trades' table
         string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
-            + "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            + "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
-            + "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
-            + "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
-            + "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
-
-        // Debug print
-        Print("Executing SQL Query: ", createTradesTable);
+            "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
+            "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
+            "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
+            "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
 
         if (!ExecuteSQLQuery(createTradesTable, errorMsg))
         {
@@ -87,12 +86,9 @@ public:
             return false;
         }
 
-        // Create 'TradeLog' table
         string createTradeLogTable = "CREATE TABLE IF NOT EXISTS TradeLog ("
-            + "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            + "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
-
-        Print("Executing SQL Query: ", createTradeLogTable);
+            "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
 
         if (!ExecuteSQLQuery(createTradeLogTable, errorMsg))
         {
@@ -100,12 +96,9 @@ public:
             return false;
         }
 
-        // Create 'LogEntries' table
         string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
-            + "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            + "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
-
-        Print("Executing SQL Query: ", createLogEntriesTable);
+            "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
 
         if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
         {
@@ -123,7 +116,7 @@ public:
     }
 
     // Export trade logs to CSV
-    bool ExportTradeLogsToCSV(string csvFilePath)
+    bool ExportTradeLogsToCSV(string csvFilePath, bool openFileAfterExport = true)
     {
         if (m_dbHandle == 0)
         {
@@ -132,16 +125,12 @@ public:
         }
 
         char errorMsg[256];
-
-        // Convert csvFilePath to a null-terminated char array
         char csvFilePathCharArray[512];
         StringToCharArray(csvFilePath, csvFilePathCharArray, 0, StringLen(csvFilePath) + 1);
 
-        // Call the ExportTradeLogsToCSV function from DatabaseImports.mqh
         int result = ::ExportTradeLogsToCSV(m_dbHandle, csvFilePathCharArray, errorMsg, sizeof(errorMsg));
         if (result != 0)
         {
-            // Convert errorMsg to string before printing
             string errorMsgStr = CharArrayToString(errorMsg);
             PrintFormat("Error exporting trade logs to CSV. Error: %s", errorMsgStr);
             return false;
@@ -149,8 +138,26 @@ public:
         else
         {
             Print("Trade logs exported to CSV successfully.");
+
+            // Check if DLL imports are allowed before opening the file
+            if (openFileAfterExport && TerminalInfoInteger(TERMINAL_DLLS_ALLOWED))
+            {
+                return OpenCSVFileInExcel(csvFilePath);
+            }
             return true;
         }
+    }
+
+    // Open CSV file in Excel using ShellExecuteW
+    bool OpenCSVFileInExcel(string csvFilePath)
+    {
+        int res = ShellExecuteW(0, "open", csvFilePath, "", "", 1);
+        if (res <= 32)
+        {
+            Print("Failed to open the CSV file in Excel.");
+            return false;
+        }
+        return true;
     }
 };
 
