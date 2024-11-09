@@ -24,6 +24,7 @@ public:
     bool ShouldCloseTradesBeforeEndOfDay();
     bool IsNewTradingDay();
     bool IsWithinTradingHours();
+    void ResetDailyTradeCount();
 };
 
 // Constructor implementation with parameters
@@ -96,7 +97,14 @@ bool TimeManager::ShouldCloseTradesBeforeEndOfDay() {
 bool TimeManager::IsNewTradingDay() {
     MqlDateTime timeStruct;
     TimeToStruct(TimeCurrent(), timeStruct);
-    return (timeStruct.day != lastTradeDay);
+    int currentDay = timeStruct.day;
+    if (currentDay != lastTradeDay) {
+        lastTradeDay = currentDay;
+        dailyTradeCount = 0; // Reset the daily trade count
+        Print("New trading day detected. Daily trade count reset.");
+        return true;
+    }
+    return false;
 }
 
 // Check if within trading hours
@@ -104,6 +112,12 @@ bool TimeManager::IsWithinTradingHours() {
     MqlDateTime timeStruct;
     TimeToStruct(TimeCurrent(), timeStruct);
     return (timeStruct.hour >= startHour && timeStruct.hour < endHour);
+}
+
+void TimeManager::ResetDailyTradeCount()
+{
+    dailyTradeCount = 0;
+    Print("Daily trade count has been reset.");
 }
 
 #endif // __TIMEMANAGER_MQH__
