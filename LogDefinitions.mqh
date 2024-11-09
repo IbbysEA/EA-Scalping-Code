@@ -1,14 +1,15 @@
+// LogDefinitions.mqh
 #ifndef __LOGDEFINITIONS_MQH__
 #define __LOGDEFINITIONS_MQH__
 
 // Enum for log levels
 enum LogLevelEnum
 {
-    LOG_LEVEL_NONE   = 0,
-    LOG_LEVEL_ERROR  = 1,
-    LOG_LEVEL_WARNING= 2,
-    LOG_LEVEL_INFO   = 3,
-    LOG_LEVEL_DEBUG  = 4
+    LOG_LEVEL_NONE    = 0,
+    LOG_LEVEL_ERROR   = 1,
+    LOG_LEVEL_WARNING = 2,
+    LOG_LEVEL_INFO    = 3,
+    LOG_LEVEL_DEBUG   = 4
 };
 
 // Enum for log categories

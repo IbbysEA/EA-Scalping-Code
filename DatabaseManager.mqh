@@ -15,19 +15,26 @@ class CDatabaseManager
 private:
     ulong m_dbHandle;
     string m_dbPath;
+    bool m_isConnected; // Added to track connection status
 
 public:
-    // Constructor
-    CDatabaseManager(string dbPathParam)
+    // Default Constructor
+    CDatabaseManager()
     {
-        m_dbPath = dbPathParam;
         m_dbHandle = 0; // Initialize dbHandle to 0
+        m_isConnected = false; // Initialize connection status
     }
 
     // Destructor
     ~CDatabaseManager()
     {
         CloseDatabaseConnection();
+    }
+
+    // Init method to set the database path
+    void Init(string dbPathParam)
+    {
+        m_dbPath = dbPathParam;
     }
 
     // Open database connection
@@ -42,8 +49,10 @@ public:
         if (m_dbHandle == 0)
         {
             PrintFormat("Failed to open database. Error: %s", CharArrayToString(errorMsg));
+            m_isConnected = false;
             return false;
         }
+        m_isConnected = true;
         return true;
     }
 
@@ -54,14 +63,27 @@ public:
         {
             CloseDatabase(m_dbHandle);
             m_dbHandle = 0;
+            m_isConnected = false;
         }
+    }
+
+    // Check if the database is connected
+    bool IsConnected()
+    {
+        return m_isConnected;
     }
 
     // Execute SQL query
     bool ExecuteSQLQuery(const string &query, string &errorMsg)
     {
+        if (!IsConnected())
+        {
+            errorMsg = "Database is not connected.";
+            return false;
+        }
+
         char errmsg[256];
-        char queryCharArray[4096]; 
+        char queryCharArray[4096];
         StringToCharArray(query, queryCharArray, 0, StringLen(query) + 1);
 
         int execResult = ExecuteSQL(m_dbHandle, queryCharArray, errmsg, sizeof(errmsg));
@@ -118,9 +140,9 @@ public:
     // Export trade logs to CSV
     bool ExportTradeLogsToCSV(string csvFilePath, bool openFileAfterExport = true)
     {
-        if (m_dbHandle == 0)
+        if (!IsConnected())
         {
-            Print("Database handle is invalid. Cannot export trade logs.");
+            Print("Database is not connected. Cannot export trade logs.");
             return false;
         }
 

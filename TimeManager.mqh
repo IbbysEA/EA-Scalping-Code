@@ -77,10 +77,8 @@ void TimeManager::RecordTradeExecution()
 // Check if maximum trades for the day has been reached
 bool TimeManager::IsMaxTradesReached()
 {
-    Print("Current daily trade count: ", dailyTradeCount, ", Max trades per day allowed: ", maxTradesPerDay); // Debug message
     if (dailyTradeCount >= maxTradesPerDay)
     {
-        Print("Daily trade limit reached: ", maxTradesPerDay);
         return true;
     }
     return false;
@@ -101,7 +99,6 @@ bool TimeManager::IsNewTradingDay() {
     if (currentDay != lastTradeDay) {
         lastTradeDay = currentDay;
         dailyTradeCount = 0; // Reset the daily trade count
-        Print("New trading day detected. Daily trade count reset.");
         return true;
     }
     return false;

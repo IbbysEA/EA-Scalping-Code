@@ -7,6 +7,8 @@
 #include "Logger.mqh"
 #include "Utils.mqh"
 #include <Trade\Trade.mqh>
+#include "LogManager.mqh"
+extern CLogManager logManager;
 
 class TrailingStopManager
 {
@@ -14,31 +16,29 @@ private:
     CTrade trade;
     double ProfitLevels[];
     int NumProfitLevels;
-
+       
 public:
-    TrailingStopManager()
-    {
-        // Default constructor
+// Constructor
+TrailingStopManager() {}
+
+// Initialize method
+void TrailingStopManager::Initialize(double &profitLevels[], int numLevels)
+{
+    // Copy profitLevels...
+    NumProfitLevels = numLevels;
+    ArrayResize(ProfitLevels, NumProfitLevels);
+    for (int i = 0; i < NumProfitLevels; i++) {
+        ProfitLevels[i] = profitLevels[i];
     }
-
-    ~TrailingStopManager() {}
-
-    void Initialize(double &profitLevels[], int numLevels)
-    {
-        ArrayResize(ProfitLevels, numLevels);
-        ArrayCopy(ProfitLevels, profitLevels);
-        NumProfitLevels = numLevels;
-    }
-
-    void ManageAllTrailingStops(PositionTracker &posTracker, CLogger &log);
-    void ManageTrailingStop(OpenPositionData &positionData, CLogger &log);
-    bool ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, CLogger &log, bool isAdjusted = false);
-    double AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol);
+}
+   void ManageAllTrailingStops(PositionTracker &posTracker);
+   void ManageTrailingStop(OpenPositionData &positionData);
+   bool ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false);
+   double AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol);
 };
 
 // Implementations
-
-void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker, CLogger &log)
+void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker)
 {
     int totalPositions = posTracker.GetTotalPositions();
     OpenPositionData positionData;
@@ -47,15 +47,15 @@ void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker, CL
     {
         if (posTracker.GetPositionByIndex(i, positionData))
         {
-            ManageTrailingStop(positionData, log);
+            ManageTrailingStop(positionData);
 
             // Update the position data in PositionTracker
-            posTracker.UpdatePositionData(positionData.positionID, positionData, log);
+            posTracker.UpdatePositionData(positionData.positionID, positionData);
         }
     }
 }
 
-void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLogger &log)
+void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
 {
     ulong positionID = positionData.positionID;
     double entryPrice = positionData.entryPrice;
@@ -65,7 +65,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
     // Select the position by ticket
     if (!PositionSelectByTicket(positionID))
     {
-        log.LogMessage("Failed to select position with ID " + IntegerToString(positionID), LOG_LEVEL_ERROR, LOG_CAT_ERRORS);
+        logManager.LogMessage("Failed to select position with ID " + IntegerToString(positionID), LOG_LEVEL_ERROR, LOG_CAT_ERRORS);
         return;
     }
 
@@ -91,7 +91,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
         totalProfitTarget = takeProfitPrice - entryPrice;
         if (totalProfitTarget <= 0)
         {
-            log.LogMessage("Total profit target is zero or negative; cannot calculate profit achieved.", LOG_LEVEL_WARNING);
+            logManager.LogMessage("Total profit target is zero or negative; cannot calculate profit achieved.", LOG_LEVEL_WARNING);
             return;
         }
         profitAchieved = currentPriceForCalc - entryPrice;
@@ -101,7 +101,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
         totalProfitTarget = entryPrice - takeProfitPrice;
         if (totalProfitTarget <= 0)
         {
-            log.LogMessage("Total profit target is zero or negative; cannot calculate profit achieved.", LOG_LEVEL_WARNING);
+            logManager.LogMessage("Total profit target is zero or negative; cannot calculate profit achieved.", LOG_LEVEL_WARNING);
             return;
         }
         profitAchieved = entryPrice - currentPriceForCalc;
@@ -110,7 +110,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
     double currentProfitPercentage = (profitAchieved / totalProfitTarget) * 100.0;
 
     // Log the percentage of the profit target achieved
-    log.LogMessage("Current profit target achieved: " + DoubleToString(currentProfitPercentage, 2) + "%", LOG_LEVEL_DEBUG);
+    logManager.LogMessage("Current profit target achieved: " + DoubleToString(currentProfitPercentage, 2) + "%", LOG_LEVEL_DEBUG);
 
     // Use the stored ProfitLevels
     for (int i = 0; i < NumProfitLevels; i++)
@@ -133,10 +133,10 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
                 desiredSL = NormalizeDouble(desiredSL, digits);
             }
 
-            log.LogMessage("Profit Target: " + DoubleToString(currentProfitPercentage, 2) + "% achieved, Adjusting SL to " + DoubleToString(desiredSL, digits), LOG_LEVEL_DEBUG);
+            logManager.LogMessage("Profit Target: " + DoubleToString(currentProfitPercentage, 2) + "% achieved, Adjusting SL to " + DoubleToString(desiredSL, digits), LOG_LEVEL_DEBUG);
 
             // Try to modify the SL, adjusting if necessary due to broker constraints
-            if (ModifyPositionSL(positionID, desiredSL, tradeType, log))
+            if (ModifyPositionSL(positionID, desiredSL, tradeType))
             {
                 positionData.currentStopLoss = desiredSL; // Update current stop loss in the position data
                 positionData.profitLevelReached = i + 1; // Update profit level only if SL modification is successful
@@ -145,7 +145,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
                 positionData.trailingStopActivated = true;
                 positionData.profitLevelAtTrailingStop = ProfitLevels[i]; // Record the profit level
 
-                log.LogMessage("Successfully modified SL for position ID " + IntegerToString(positionID) + " to " + DoubleToString(desiredSL, digits), LOG_LEVEL_DEBUG);
+                logManager.LogMessage("Successfully modified SL for position ID " + IntegerToString(positionID) + " to " + DoubleToString(desiredSL, digits), LOG_LEVEL_DEBUG);
             }
             else
             {
@@ -153,7 +153,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
                 double adjustedSL = AdjustSLToBrokerLimits(desiredSL, tradeType, symbol);
                 if (MathAbs(adjustedSL - currentSL) > (pointSize * 0.1))  // Check if there is an actual change
                 {
-                    if (ModifyPositionSL(positionID, adjustedSL, tradeType, log, true))
+                    if (ModifyPositionSL(positionID, adjustedSL, tradeType, true))
                     {
                         positionData.currentStopLoss = adjustedSL; // Update current stop loss in the position data
                         positionData.profitLevelReached = i + 1; // Update profit level only if SL modification is successful
@@ -162,17 +162,17 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
                         positionData.trailingStopActivated = true;
                         positionData.profitLevelAtTrailingStop = ProfitLevels[i]; // Record the profit level
 
-                        log.LogMessage("Adjusted SL for position ID " + IntegerToString(positionID) + " to closest allowed level " + DoubleToString(adjustedSL, digits), LOG_LEVEL_INFO);
+                        logManager.LogMessage("Adjusted SL for position ID " + IntegerToString(positionID) + " to closest allowed level " + DoubleToString(adjustedSL, digits), LOG_LEVEL_INFO);
                     }
                     else
                     {
-                        log.LogMessage("Failed to modify SL for position ID " + IntegerToString(positionID) + " even after adjustment", LOG_LEVEL_WARNING);
+                        logManager.LogMessage("Failed to modify SL for position ID " + IntegerToString(positionID) + " even after adjustment", LOG_LEVEL_WARNING);
                         // Do not update profitLevelReached so the EA can retry
                     }
                 }
                 else
                 {
-                    log.LogMessage("SL is already at the closest possible level. No modification made.", LOG_LEVEL_INFO);
+                    logManager.LogMessage("SL is already at the closest possible level. No modification made.", LOG_LEVEL_INFO);
                     // Update profitLevelReached to prevent repeated attempts
                     positionData.profitLevelReached = i + 1;
                 }
@@ -182,7 +182,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData, CLo
     }
 }
 
-bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, CLogger &log, bool isAdjusted)
+bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false)
 {
     MqlTradeRequest request;
     MqlTradeResult result;
@@ -191,7 +191,7 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
 
     if (!PositionSelectByTicket(positionID))
     {
-        log.LogMessage("ModifyPositionSL: Failed to select position ID " + IntegerToString(positionID) + ".", LOG_LEVEL_ERROR);
+        logManager.LogMessage("ModifyPositionSL: Failed to select position ID " + IntegerToString(positionID) + ".", LOG_LEVEL_ERROR);
         return false;
     }
 
@@ -228,7 +228,7 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
         }
         if (newSL <= currentSL)
         {
-            log.LogMessage("New SL is not better than the current SL for BUY position.", LOG_LEVEL_WARNING);
+            logManager.LogMessage("New SL is not better than the current SL for BUY position.", LOG_LEVEL_WARNING);
             return false;
         }
     }
@@ -250,7 +250,7 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
         }
         if (newSL >= currentSL)
         {
-            log.LogMessage("New SL is not better than the current SL for SELL position.", LOG_LEVEL_WARNING);
+            logManager.LogMessage("New SL is not better than the current SL for SELL position.", LOG_LEVEL_WARNING);
             return false;
         }
     }
@@ -279,13 +279,13 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
         // Use StringFormat to build the error message
         string errorMsg = StringFormat("Failed to modify SL for position ID %I64d. Error Code: %d, Description: %s", positionID, errorCode, errorDescription);
 
-        log.LogMessage(errorMsg, LOG_LEVEL_ERROR);
+        logManager.LogMessage(errorMsg, LOG_LEVEL_ERROR);
         ResetLastError();
         return false;
       }
    return true;
 }
-
+   
 double TrailingStopManager::AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol)
 {
     double currentPrice = (tradeType == POSITION_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_BID) : SymbolInfoDouble(symbol, SYMBOL_ASK);

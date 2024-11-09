@@ -4,6 +4,8 @@
 
 #include "DataStructures.mqh"
 #include "Logger.mqh"
+#include "LogManager.mqh"
+extern CLogManager logManager;
 
 class PositionTracker
 {
@@ -17,27 +19,27 @@ public:
 
     ~PositionTracker() {}
 
-    void AddPosition(const OpenPositionData &positionData, CLogger &log);
-    void RemovePositionByIndex(int index, CLogger &log);
+    void AddPosition(const OpenPositionData &positionData);
+    void RemovePositionByIndex(int index);
     int FindPositionIndex(ulong positionID);
     bool GetPositionData(ulong positionID, OpenPositionData &outPositionData);
-    void UpdatePositionData(ulong positionID, const OpenPositionData &updatedData, CLogger &log);
+    void UpdatePositionData(ulong positionID, const OpenPositionData &positionData);
     int GetTotalPositions();
     bool GetPositionByIndex(int index, OpenPositionData &outPositionData);
-    void ClearAllPositions(CLogger &log);
+    void ClearAllPositions();
 };
 
 // Implementation of PositionTracker methods
 
-void PositionTracker::AddPosition(const OpenPositionData &positionData, CLogger &log)
+void PositionTracker::AddPosition(const OpenPositionData &positionData)
 {
     int size = ArraySize(positions);
     ArrayResize(positions, size + 1);
     positions[size] = positionData;
-    log.LogMessage("Position added to tracker. Position ID: " + IntegerToString(positionData.positionID), LOG_LEVEL_DEBUG);
+    logManager.LogMessage("Position added to tracker. Position ID: " + IntegerToString(positionData.positionID), LOG_LEVEL_DEBUG);
 }
 
-void PositionTracker::RemovePositionByIndex(int index, CLogger &log)
+void PositionTracker::RemovePositionByIndex(int index)
 {
     int size = ArraySize(positions);
     if (index >= 0 && index < size)
@@ -47,7 +49,7 @@ void PositionTracker::RemovePositionByIndex(int index, CLogger &log)
             positions[i] = positions[i + 1];
         }
         ArrayResize(positions, size - 1);
-        log.LogMessage("Position removed from tracker at index: " + IntegerToString(index), LOG_LEVEL_DEBUG);
+        logManager.LogMessage("Position removed from tracker at index: " + IntegerToString(index), LOG_LEVEL_DEBUG);
     }
 }
 
@@ -75,13 +77,13 @@ bool PositionTracker::GetPositionData(ulong positionID, OpenPositionData &outPos
     return false;
 }
 
-void PositionTracker::UpdatePositionData(ulong positionID, const OpenPositionData &updatedData, CLogger &log)
+void PositionTracker::UpdatePositionData(ulong positionID, const OpenPositionData &updatedData)
 {
     int index = FindPositionIndex(positionID);
     if (index != -1)
     {
         positions[index] = updatedData;
-        log.LogMessage("Position data updated for Position ID: " + IntegerToString(positionID), LOG_LEVEL_DEBUG);
+        logManager.LogMessage("Position data updated for Position ID: " + IntegerToString(positionID), LOG_LEVEL_DEBUG);
     }
 }
 
@@ -100,10 +102,10 @@ bool PositionTracker::GetPositionByIndex(int index, OpenPositionData &outPositio
     return false;
 }
 
-void PositionTracker::ClearAllPositions(CLogger &log)
+void PositionTracker::ClearAllPositions()
 {
     ArrayResize(positions, 0);
-    log.LogMessage("All positions cleared from PositionTracker.", LOG_LEVEL_INFO);
+    logManager.LogMessage("All positions cleared from PositionTracker.", LOG_LEVEL_INFO);
 }
 
 #endif // __POSITIONTRACKER_MQH__
