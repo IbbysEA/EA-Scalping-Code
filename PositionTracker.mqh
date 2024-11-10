@@ -5,7 +5,7 @@
 #include "DataStructures.mqh"
 #include "Logger.mqh"
 #include "LogManager.mqh"
-extern CLogManager logManager;
+#include "GlobalVariables.mqh"
 
 class PositionTracker
 {

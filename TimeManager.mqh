@@ -1,120 +1,146 @@
+// TimeManager.mqh
 #ifndef __TIMEMANAGER_MQH__
 #define __TIMEMANAGER_MQH__
 
-class TimeManager {
+#include "GlobalVariables.mqh"
+
+class TimeManager
+{
+private:
+   // Member variables
+   int m_cooldownTime;
+   int m_maxTradesPerDay;
+   int m_closeTradesHour;
+   int m_closeTradesMinute;
+   int m_tradingStartHour;
+   int m_tradingEndHour;
+
+   datetime m_lastTradeTime;
+   datetime m_lastTradeDay;
+   int      dailyTradeCount;
+
 public:
-    datetime lastTradeTime;  
-    int cooldownTime;
-    int maxTradesPerDay;
-    int dailyTradeCount;
-    int lastTradeDay;
-    int closeTradesHour;
-    int closeTradesMinute;
-    int startHour;
-    int endHour;
+   // Default Constructor
+   TimeManager()
+   {
+      // Initialize member variables with default values
+      m_cooldownTime       = 0;
+      m_maxTradesPerDay    = 0;
+      m_closeTradesHour    = 0;
+      m_closeTradesMinute  = 0;
+      m_tradingStartHour   = 0;
+      m_tradingEndHour     = 0;
 
-    // Constructor with start and end hour parameters
-    TimeManager(int cooldown, int maxTrades, int closeHour, int closeMinute, int startHr, int endHr);
+      m_lastTradeTime = 0;
+      m_lastTradeDay  = 0;
+      dailyTradeCount = 0;
+   }
 
-    bool IsCooldownPeriodOver();
-    void CheckAndResetDailyTradeCount();
-    void RecordTradeExecution(bool tradeSuccessful);
-    void RecordTradeExecution(); // Original function
-    bool IsMaxTradesReached();
-    bool ShouldCloseTradesBeforeEndOfDay();
-    bool IsNewTradingDay();
-    bool IsWithinTradingHours();
-    void ResetDailyTradeCount();
+   // Initialization method
+   void Init(int cooldownTimeInput, int maxTradesPerDayInput, int closeTradesHourInput, int closeTradesMinuteInput, int tradingStartHourInput, int tradingEndHourInput)
+   {
+      m_cooldownTime       = cooldownTimeInput;
+      m_maxTradesPerDay    = maxTradesPerDayInput;
+      m_closeTradesHour    = closeTradesHourInput;
+      m_closeTradesMinute  = closeTradesMinuteInput;
+      m_tradingStartHour   = tradingStartHourInput;
+      m_tradingEndHour     = tradingEndHourInput;
+
+      m_lastTradeTime = 0;
+      m_lastTradeDay  = 0;
+      dailyTradeCount = 0;
+   }
+
+   // Methods
+
+   // Check if the cooldown period is over
+   bool IsCooldownPeriodOver()
+   {
+      datetime currentTime = TimeCurrent();
+      if ((currentTime - m_lastTradeTime) >= m_cooldownTime)
+         return true;
+      return false;
+   }
+
+   // Check and reset daily trade count if a new day has started
+   void CheckAndResetDailyTradeCount()
+   {
+      datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
+      if (currentDay != m_lastTradeDay)
+      {
+         m_lastTradeDay = currentDay;
+         dailyTradeCount = 0;
+      }
+   }
+
+   // Record a trade execution and update the last trade time and daily trade count
+   void RecordTradeExecution(bool successful)
+   {
+      m_lastTradeTime = TimeCurrent();
+      if (successful)
+         dailyTradeCount++;
+   }
+
+   // Check if the maximum number of trades per day has been reached
+   bool IsMaxTradesReached()
+   {
+      return dailyTradeCount >= m_maxTradesPerDay;
+   }
+
+   // Determine if trades should be closed before the end of the day
+   bool ShouldCloseTradesBeforeEndOfDay()
+   {
+      datetime currentTime = TimeCurrent();
+      MqlDateTime timeStruct;
+      TimeToStruct(currentTime, timeStruct);
+
+      if (timeStruct.hour > m_closeTradesHour || (timeStruct.hour == m_closeTradesHour && timeStruct.min >= m_closeTradesMinute))
+         return true;
+      return false;
+   }
+
+   // Check if it's a new trading day
+   bool IsNewTradingDay()
+   {
+      datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
+      if (currentDay != m_lastTradeDay)
+      {
+         m_lastTradeDay = currentDay;
+         dailyTradeCount = 0;
+         return true;
+      }
+      return false;
+   }
+
+   // Check if current time is within trading hours
+   bool IsWithinTradingHours()
+   {
+      datetime currentTime = TimeCurrent();
+      MqlDateTime timeStruct;
+      TimeToStruct(currentTime, timeStruct);
+
+      // Exclude weekends (Saturday and Sunday)
+      if (timeStruct.day_of_week == 0 || timeStruct.day_of_week == 6)
+         return false;
+
+      // Check if current hour is within trading hours
+      if (timeStruct.hour < m_tradingStartHour || timeStruct.hour > m_tradingEndHour)
+         return false;
+
+      return true;
+   }
+
+   // Reset daily trade count
+   void ResetDailyTradeCount()
+   {
+      dailyTradeCount = 0;
+   }
+
+   // Get the daily trade count
+   int GetDailyTradeCount()
+   {
+      return dailyTradeCount;
+   }
 };
-
-// Constructor implementation with parameters
-TimeManager::TimeManager(int cooldown, int maxTrades, int closeHour, int closeMinute, int startHr, int endHr)
-    : cooldownTime(cooldown), maxTradesPerDay(maxTrades), closeTradesHour(closeHour), closeTradesMinute(closeMinute),
-      startHour(startHr), endHour(endHr) {
-    lastTradeTime = 0;
-    dailyTradeCount = 0;
-    lastTradeDay = -1;
-}
-
-// Check if the cooldown period has passed
-bool TimeManager::IsCooldownPeriodOver() {
-    datetime currentTime = TimeCurrent();
-    return (currentTime - lastTradeTime >= cooldownTime);
-}
-
-// Reset daily trade count if a new day has started
-void TimeManager::CheckAndResetDailyTradeCount() {
-    MqlDateTime currentTimeStruct;
-    TimeToStruct(TimeCurrent(), currentTimeStruct);
-    int currentDay = currentTimeStruct.day;
-
-    if (currentDay != lastTradeDay) {
-        Print("New trading day detected. Resetting daily trade count.");
-        dailyTradeCount = 0;  // Reset the daily trade count only at the start of a new day
-        lastTradeDay = currentDay;
-    }
-}
-
-// Record trade execution only if it's a new trade
-void TimeManager::RecordTradeExecution(bool tradeSuccessful)
-{
-    if (tradeSuccessful) // Increment only on successful trades
-    {
-        dailyTradeCount++;
-        Print("Trade executed successfully. Daily trade count updated to: ", dailyTradeCount);
-    }
-    lastTradeTime = TimeCurrent(); // Update last trade time for cooldown tracking
-}
-
-// Original function for backward compatibility
-void TimeManager::RecordTradeExecution()
-{
-    dailyTradeCount++;
-    lastTradeTime = TimeCurrent();
-    Print("Trade executed. Daily trade count updated to: ", dailyTradeCount);
-}
-
-// Check if maximum trades for the day has been reached
-bool TimeManager::IsMaxTradesReached()
-{
-    if (dailyTradeCount >= maxTradesPerDay)
-    {
-        return true;
-    }
-    return false;
-}
-
-// Check if it is time to close trades before end of day
-bool TimeManager::ShouldCloseTradesBeforeEndOfDay() {
-    MqlDateTime timeStruct;
-    TimeToStruct(TimeCurrent(), timeStruct);
-    return (timeStruct.hour > closeTradesHour || (timeStruct.hour == closeTradesHour && timeStruct.min >= closeTradesMinute));
-}
-
-// Check if a new trading day has started
-bool TimeManager::IsNewTradingDay() {
-    MqlDateTime timeStruct;
-    TimeToStruct(TimeCurrent(), timeStruct);
-    int currentDay = timeStruct.day;
-    if (currentDay != lastTradeDay) {
-        lastTradeDay = currentDay;
-        dailyTradeCount = 0; // Reset the daily trade count
-        return true;
-    }
-    return false;
-}
-
-// Check if within trading hours
-bool TimeManager::IsWithinTradingHours() {
-    MqlDateTime timeStruct;
-    TimeToStruct(TimeCurrent(), timeStruct);
-    return (timeStruct.hour >= startHour && timeStruct.hour < endHour);
-}
-
-void TimeManager::ResetDailyTradeCount()
-{
-    dailyTradeCount = 0;
-    Print("Daily trade count has been reset.");
-}
 
 #endif // __TIMEMANAGER_MQH__

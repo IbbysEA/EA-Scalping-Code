@@ -90,46 +90,50 @@ public:
         errorMsg = CharArrayToString(errmsg);
         return (execResult == 0);
     }
+    
+// Create tables
+bool CreateTables()
+{
+    string errorMsg;
 
-    // Create tables
-    bool CreateTables()
+    // Create 'trades' table
+    string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
+        "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
+        "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
+        "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
+        "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
+
+    if (!ExecuteSQLQuery(createTradesTable, errorMsg))
     {
-        string errorMsg;
-        string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
-            "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
-            "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
-            "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
-            "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
-
-        if (!ExecuteSQLQuery(createTradesTable, errorMsg))
-        {
-            PrintFormat("Failed to create 'trades' table. Error: %s", errorMsg);
-            return false;
-        }
-
-        string createTradeLogTable = "CREATE TABLE IF NOT EXISTS TradeLog ("
-            "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
-
-        if (!ExecuteSQLQuery(createTradeLogTable, errorMsg))
-        {
-            PrintFormat("Failed to create 'TradeLog' table. Error: %s", errorMsg);
-            return false;
-        }
-
-        string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
-            "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
-
-        if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
-        {
-            PrintFormat("Failed to create 'LogEntries' table. Error: %s", errorMsg);
-            return false;
-        }
-
-        return true;
+        PrintFormat("Failed to create 'trades' table. Error: %s", errorMsg);
+        return false;
     }
+
+    // Create 'TradeLog' table
+    string createTradeLogEntries = "CREATE TABLE IF NOT EXISTS TradeLog ("
+        "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
+
+    if (!ExecuteSQLQuery(createTradeLogEntries, errorMsg))
+    {
+        PrintFormat("Failed to create 'TradeLog' table. Error: %s", errorMsg);
+        return false;
+    }
+
+    // Create 'LogEntries' table
+    string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
+        "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
+
+    if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
+    {
+        PrintFormat("Failed to create 'LogEntries' table. Error: %s", errorMsg);
+        return false;
+    }
+
+    return true;
+}
 
     // Get the database handle
     ulong GetDBHandle()

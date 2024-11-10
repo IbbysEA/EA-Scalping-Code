@@ -1,8 +1,8 @@
 // LogDefinitions.mqh
+
 #ifndef __LOGDEFINITIONS_MQH__
 #define __LOGDEFINITIONS_MQH__
 
-// Enum for log levels
 enum LogLevelEnum
 {
     LOG_LEVEL_NONE    = 0,
@@ -12,25 +12,22 @@ enum LogLevelEnum
     LOG_LEVEL_DEBUG   = 4
 };
 
-// Enum for log categories
-enum LogCategoryEnum {
-    LOG_CAT_NONE            = 0x0000,
-    LOG_CAT_ATR             = 0x0001,
-    LOG_CAT_TRADE_EXECUTION = 0x0002,
-    LOG_CAT_SLTP_VALUES     = 0x0004,
-    LOG_CAT_RISK_MANAGEMENT = 0x0008,
-    LOG_CAT_ERRORS          = 0x0010,
-    LOG_CAT_OTHER           = 0x0020,
-    LOG_CAT_ALL             = 0xFFFF
-};
+// Log category bit flags
+#define LOG_CAT_TRADE_EXECUTION    1
+#define LOG_CAT_ERRORS             2
+#define LOG_CAT_INITIALIZATION     4
+#define LOG_CAT_DEINITIALIZATION   8
+#define LOG_CAT_TRADE_MANAGEMENT   16
+#define LOG_CAT_TRADE_LIMIT        32
+#define LOG_CAT_COOLDOWN           64
+#define LOG_CAT_SLTP_VALUES        128
+#define LOG_CAT_RISK_MANAGEMENT    256
+#define LOG_CAT_ATR                512
+#define LOG_CAT_VOLUME             1024
+#define LOG_CAT_INDICATORS         2048   // Added LOG_CAT_INDICATORS
+#define LOG_CAT_OTHER              4096
 
-// Struct to store log entries
-struct LogEntry {
-    string date;
-    string time;
-    string logLevel;
-    string category;
-    string message;
-};
+// Define all categories
+#define LOG_CAT_ALL                (LOG_CAT_TRADE_EXECUTION | LOG_CAT_ERRORS | LOG_CAT_INITIALIZATION | LOG_CAT_DEINITIALIZATION | LOG_CAT_TRADE_MANAGEMENT | LOG_CAT_TRADE_LIMIT | LOG_CAT_COOLDOWN | LOG_CAT_SLTP_VALUES | LOG_CAT_RISK_MANAGEMENT | LOG_CAT_ATR | LOG_CAT_VOLUME | LOG_CAT_INDICATORS | LOG_CAT_OTHER)
 
 #endif // __LOGDEFINITIONS_MQH__

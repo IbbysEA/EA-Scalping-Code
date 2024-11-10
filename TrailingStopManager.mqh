@@ -8,7 +8,7 @@
 #include "Utils.mqh"
 #include <Trade\Trade.mqh>
 #include "LogManager.mqh"
-extern CLogManager logManager;
+#include "GlobalVariables.mqh"
 
 class TrailingStopManager
 {
