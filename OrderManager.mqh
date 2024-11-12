@@ -1,16 +1,17 @@
 // OrderManager.mqh
+
 #ifndef __ORDERMANAGER_MQH__
 #define __ORDERMANAGER_MQH__
 
 #include <Trade\Trade.mqh>
 #include "Logger.mqh"
-#include "DataStructures.mqh" // Include the structs definitions
+#include "DataStructures.mqh"
+#include "GlobalVariables.mqh"
 
 class OrderManager
 {
 private:
     CTrade trade;
-    CLogger* logger;
     int MagicNumber;
     int Slippage;
 
@@ -18,9 +19,9 @@ private:
     bool CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double slPrice, double tpPrice, double entryPrice);
 
 public:
-    OrderManager(CLogger* pLogger, int magicNumber, int slippage)
+    // Constructor without pointers
+    OrderManager(int magicNumber, int slippage)
     {
-        this.logger = pLogger;
         this.MagicNumber = magicNumber;
         this.Slippage = slippage;
         trade.SetExpertMagicNumber(MagicNumber);
@@ -57,17 +58,28 @@ bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double 
     tpDistance = MathAbs(tpDistance);
 
     if (slDistance < minStopLevelPoints || tpDistance < minStopLevelPoints) {
-        logger.LogMessage("SL or TP too close to price. Minimum stop level: " + DoubleToString(minStopLevelPoints, _Digits), LOG_LEVEL_ERROR);
+        logManager.LogMessage("SL or TP too close to price. Minimum stop level: " + DoubleToString(minStopLevelPoints, _Digits), LOG_LEVEL_ERROR);
         return false;
     }
 
-    logger.LogMessage("SL=" + DoubleToString(slPrice, _Digits) + " and TP=" + DoubleToString(tpPrice, _Digits) + " passed validation.", LOG_LEVEL_INFO);
+    logManager.LogMessage("SL=" + DoubleToString(slPrice, _Digits) + " and TP=" + DoubleToString(tpPrice, _Digits) + " passed validation.", LOG_LEVEL_INFO);
     return true;
 }
 
-// Implementation of OpenOrder
-bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType, double lotSize, double entryPrice, double slPrice, double tpPrice, string reason, double atrValue, double wprValue, OpenPositionData &newPosition)
+// Implementation of OpenOrder with timing and profiling
+bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
+                             double lotSize,
+                             double entryPrice,
+                             double slPrice,
+                             double tpPrice,
+                             string reason,
+                             double atrValue,
+                             double wprValue,
+                             OpenPositionData &newPosition)
 {
+    // Start timing
+    ulong startTime = GetCustomTickCount();
+
     // Validate SL and TP levels before opening the position
     if (!CheckStopLossAndTakeProfit(orderType, slPrice, tpPrice, entryPrice))
     {
@@ -101,13 +113,13 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType, double lotSize, double e
             }
             else
             {
-                logger.LogMessage("Failed to select deal after trade execution.", LOG_LEVEL_ERROR);
+                logManager.LogMessage("Failed to select deal after trade execution.", LOG_LEVEL_ERROR);
                 return false;
             }
         }
         else
         {
-            logger.LogMessage("Failed to get deal ticket after trade execution.", LOG_LEVEL_ERROR);
+            logManager.LogMessage("Failed to get deal ticket after trade execution.", LOG_LEVEL_ERROR);
             return false;
         }
 
@@ -131,7 +143,13 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType, double lotSize, double e
         newPosition.profitLevelAtTrailingStop = 0.0;
         newPosition.isLogged = false;
 
-        logger.LogMessage("Order opened successfully. Position ID: " + IntegerToString(positionID), LOG_LEVEL_INFO);
+        logManager.LogMessage("Order opened successfully. Position ID: " + IntegerToString((int)positionID), LOG_LEVEL_INFO);
+
+        // End timing and log the duration
+        ulong endTime = GetCustomTickCount();
+        ulong duration = endTime - startTime;
+        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+
         return true;
     }
     else
@@ -139,7 +157,13 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType, double lotSize, double e
         // Handle trade failure
         uint errorCode = trade.ResultRetcode();
         string errorDescription = trade.ResultRetcodeDescription();
-        logger.LogMessage("Trade Order Failed: " + errorDescription, LOG_LEVEL_ERROR);
+        logManager.LogMessage("Trade Order Failed: " + errorDescription, LOG_LEVEL_ERROR);
+
+        // End timing and log the duration
+        ulong endTime = GetCustomTickCount();
+        ulong duration = endTime - startTime;
+        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+
         return false;
     }
 }

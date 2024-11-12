@@ -1,4 +1,5 @@
 // TrailingStopManager.mqh
+
 #ifndef __TRAILINGSTOPMANAGER_MQH__
 #define __TRAILINGSTOPMANAGER_MQH__
 
@@ -16,30 +17,35 @@ private:
     CTrade trade;
     double ProfitLevels[];
     int NumProfitLevels;
-       
-public:
-// Constructor
-TrailingStopManager() {}
 
-// Initialize method
-void TrailingStopManager::Initialize(double &profitLevels[], int numLevels)
-{
-    // Copy profitLevels...
-    NumProfitLevels = numLevels;
-    ArrayResize(ProfitLevels, NumProfitLevels);
-    for (int i = 0; i < NumProfitLevels; i++) {
-        ProfitLevels[i] = profitLevels[i];
+public:
+    // Constructor
+    TrailingStopManager() {}
+
+    // Initialize method
+    void Initialize(double &profitLevels[], int numLevels)
+    {
+        // Copy profitLevels...
+        NumProfitLevels = numLevels;
+        ArrayResize(ProfitLevels, NumProfitLevels);
+        for (int i = 0; i < NumProfitLevels; i++)
+        {
+            ProfitLevels[i] = profitLevels[i];
+        }
     }
-}
-   void ManageAllTrailingStops(PositionTracker &posTracker);
-   void ManageTrailingStop(OpenPositionData &positionData);
-   bool ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false);
-   double AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol);
+
+    void ManageAllTrailingStops(PositionTracker &posTracker);
+    void ManageTrailingStop(OpenPositionData &positionData);
+    bool ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false);
+    double AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol);
 };
 
 // Implementations
 void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker)
 {
+    // Start timing
+    ulong startTime = GetCustomTickCount();
+
     int totalPositions = posTracker.GetTotalPositions();
     OpenPositionData positionData;
 
@@ -53,6 +59,11 @@ void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker)
             posTracker.UpdatePositionData(positionData.positionID, positionData);
         }
     }
+
+    // End timing and log the duration
+    ulong endTime = GetCustomTickCount();
+    ulong duration = endTime - startTime;
+    logManager.LogMessage("ManageAllTrailingStops execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
 }
 
 void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)

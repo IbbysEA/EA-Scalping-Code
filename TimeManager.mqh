@@ -1,4 +1,5 @@
 // TimeManager.mqh
+
 #ifndef __TIMEMANAGER_MQH__
 #define __TIMEMANAGER_MQH__
 
@@ -7,60 +8,68 @@
 class TimeManager
 {
 private:
-   // Member variables
-   int m_cooldownTime;
-   int m_maxTradesPerDay;
-   int m_closeTradesHour;
-   int m_closeTradesMinute;
-   int m_tradingStartHour;
-   int m_tradingEndHour;
+    // Member variables
+    int m_cooldownTime;
+    int m_maxTradesPerDay;
+    int m_closeTradesHour;
+    int m_closeTradesMinute;
+    int m_tradingStartHour;
+    int m_tradingEndHour;
 
-   datetime m_lastTradeTime;
-   datetime m_lastTradeDay;
-   int      dailyTradeCount;
+    datetime m_lastTradeTime;
+    datetime m_lastTradeDay;
+    int      dailyTradeCount;
 
 public:
-   // Default Constructor
-   TimeManager()
-   {
-      // Initialize member variables with default values
-      m_cooldownTime       = 0;
-      m_maxTradesPerDay    = 0;
-      m_closeTradesHour    = 0;
-      m_closeTradesMinute  = 0;
-      m_tradingStartHour   = 0;
-      m_tradingEndHour     = 0;
+    // Default Constructor
+    TimeManager()
+    {
+        // Initialize member variables with default values
+        m_cooldownTime       = 0;
+        m_maxTradesPerDay    = 0;
+        m_closeTradesHour    = 0;
+        m_closeTradesMinute  = 0;
+        m_tradingStartHour   = 0;
+        m_tradingEndHour     = 0;
 
-      m_lastTradeTime = 0;
-      m_lastTradeDay  = 0;
-      dailyTradeCount = 0;
-   }
+        m_lastTradeTime = 0;
+        m_lastTradeDay  = 0;
+        dailyTradeCount = 0;
+    }
 
-   // Initialization method
-   void Init(int cooldownTimeInput, int maxTradesPerDayInput, int closeTradesHourInput, int closeTradesMinuteInput, int tradingStartHourInput, int tradingEndHourInput)
-   {
-      m_cooldownTime       = cooldownTimeInput;
-      m_maxTradesPerDay    = maxTradesPerDayInput;
-      m_closeTradesHour    = closeTradesHourInput;
-      m_closeTradesMinute  = closeTradesMinuteInput;
-      m_tradingStartHour   = tradingStartHourInput;
-      m_tradingEndHour     = tradingEndHourInput;
+    // Initialization method
+    void Init(int cooldownTimeInput, int maxTradesPerDayInput, int closeTradesHourInput, int closeTradesMinuteInput, int tradingStartHourInput, int tradingEndHourInput)
+    {
+        m_cooldownTime       = cooldownTimeInput;
+        m_maxTradesPerDay    = maxTradesPerDayInput;
+        m_closeTradesHour    = closeTradesHourInput;
+        m_closeTradesMinute  = closeTradesMinuteInput;
+        m_tradingStartHour   = tradingStartHourInput;
+        m_tradingEndHour     = tradingEndHourInput;
 
-      m_lastTradeTime = 0;
-      m_lastTradeDay  = 0;
-      dailyTradeCount = 0;
-   }
+        m_lastTradeTime = 0;
+        m_lastTradeDay  = 0;
+        dailyTradeCount = 0;
+    }
 
    // Methods
 
-   // Check if the cooldown period is over
-   bool IsCooldownPeriodOver()
-   {
-      datetime currentTime = TimeCurrent();
-      if ((currentTime - m_lastTradeTime) >= m_cooldownTime)
-         return true;
-      return false;
-   }
+    // Check if the cooldown period is over with timing and profiling
+    bool IsCooldownPeriodOver()
+    {
+        // Start timing
+        ulong startTime = GetCustomTickCount();
+
+        datetime currentTime = TimeCurrent();
+        bool isOver = ((currentTime - m_lastTradeTime) >= m_cooldownTime);
+
+        // End timing and log the duration
+        ulong endTime = GetCustomTickCount();
+        ulong duration = endTime - startTime;
+        logManager.LogMessage("IsCooldownPeriodOver execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+
+        return isOver;
+    }
 
    // Check and reset daily trade count if a new day has started
    void CheckAndResetDailyTradeCount()
