@@ -15,14 +15,14 @@ class CDatabaseManager
 private:
     ulong m_dbHandle;
     string m_dbPath;
-    bool m_isConnected; // Added to track connection status
+    bool m_isConnected; // Track connection status
 
 public:
     // Default Constructor
     CDatabaseManager()
     {
         m_dbHandle = 0; // Initialize dbHandle to 0
-        m_isConnected = false; // Initialize connection status
+        m_isConnected = false;
     }
 
     // Destructor
@@ -41,7 +41,6 @@ public:
     bool OpenDatabaseConnection()
     {
         char errorMsg[256];
-        // Convert m_dbPath to a null-terminated char array
         char dbPathCharArray[512];
         StringToCharArray(m_dbPath, dbPathCharArray, 0, StringLen(m_dbPath) + 1);
 
@@ -90,19 +89,18 @@ public:
         errorMsg = CharArrayToString(errmsg);
         return (execResult == 0);
     }
-    
-// Create tables
+
 bool CreateTables()
 {
     string errorMsg;
 
     // Create 'trades' table
     string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
-        "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
-        "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
-        "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
-        "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
+                               "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                               "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
+                               "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
+                               "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
+                               "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
 
     if (!ExecuteSQLQuery(createTradesTable, errorMsg))
     {
@@ -112,8 +110,8 @@ bool CreateTables()
 
     // Create 'TradeLog' table
     string createTradeLogEntries = "CREATE TABLE IF NOT EXISTS TradeLog ("
-        "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
+                                   "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                                   "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
 
     if (!ExecuteSQLQuery(createTradeLogEntries, errorMsg))
     {
@@ -123,8 +121,8 @@ bool CreateTables()
 
     // Create 'LogEntries' table
     string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
-        "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
+                                   "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                                   "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
 
     if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
     {
@@ -132,8 +130,24 @@ bool CreateTables()
         return false;
     }
 
+    // Adjusted 'ErrorAggregations' table for error aggregation
+    string createErrorAggregationsTable = "CREATE TABLE IF NOT EXISTS ErrorAggregations ("
+                                          "ErrorCode INTEGER, "
+                                          "ErrorMessage TEXT, "
+                                          "Count INTEGER, "
+                                          "FirstOccurrence TEXT, "
+                                          "LastOccurrence TEXT, "
+                                          "UNIQUE (ErrorCode, ErrorMessage));";
+
+    if (!ExecuteSQLQuery(createErrorAggregationsTable, errorMsg))
+    {
+        PrintFormat("Failed to create 'ErrorAggregations' table. Error: %s", errorMsg);
+        return false;
+    }
+
     return true;
 }
+
 
     // Get the database handle
     ulong GetDBHandle()

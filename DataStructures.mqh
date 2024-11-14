@@ -47,4 +47,14 @@ struct TradeData
    string remarks;
 };
 
+// New struct for error aggregation
+struct AggregatedError
+{
+   int errorCode;
+   string errorMessage;
+   int count;
+   datetime firstOccurrence;
+   datetime lastOccurrence;
+};
+
 #endif // __DATASTRUCTURES_MQH__

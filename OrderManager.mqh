@@ -148,7 +148,7 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
         // End timing and log the duration
         ulong endTime = GetCustomTickCount();
         ulong duration = endTime - startTime;
-        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_PROFILING);
 
         return true;
     }
@@ -162,7 +162,7 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
         // End timing and log the duration
         ulong endTime = GetCustomTickCount();
         ulong duration = endTime - startTime;
-        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+        logManager.LogMessage("OpenOrder execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_PROFILING);
 
         return false;
     }

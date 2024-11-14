@@ -66,7 +66,7 @@ public:
         // End timing and log the duration
         ulong endTime = GetCustomTickCount();
         ulong duration = endTime - startTime;
-        logManager.LogMessage("IsCooldownPeriodOver execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+        logManager.LogMessage("IsCooldownPeriodOver execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_PROFILING);
 
         return isOver;
     }

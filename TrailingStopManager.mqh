@@ -63,7 +63,7 @@ void TrailingStopManager::ManageAllTrailingStops(PositionTracker &posTracker)
     // End timing and log the duration
     ulong endTime = GetCustomTickCount();
     ulong duration = endTime - startTime;
-    logManager.LogMessage("ManageAllTrailingStops execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_DEV_STAGE);
+    logManager.LogMessage("ManageAllTrailingStops execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_PROFILING);
 }
 
 void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
@@ -76,7 +76,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
     // Select the position by ticket
     if (!PositionSelectByTicket(positionID))
     {
-        logManager.LogMessage("Failed to select position with ID " + IntegerToString(positionID), LOG_LEVEL_ERROR, LOG_CAT_ERRORS);
+        logManager.LogMessage("Failed to select position with ID " + IntegerToString(positionID), LOG_LEVEL_ERROR, LOG_CAT_AGGREGATED_ERRORS);
         return;
     }
 
