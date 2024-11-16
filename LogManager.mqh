@@ -5,7 +5,11 @@
 
 #include "LogDefinitions.mqh"
 #include "Logger.mqh"
-#include "DataStructures.mqh"
+#include "DataStructures.mqh"  // For AggregatedError
+#include "Utils.mqh"           // For SanitizeForSQL and FormatErrorMessage functions
+
+// Forward declaration of CDatabaseManager to avoid circular dependency
+class CDatabaseManager;
 
 // Declare the global database manager
 extern CDatabaseManager dbManager;
@@ -16,8 +20,8 @@ private:
     CLogger m_logger;
     bool m_enableDebugLogging;
 
-    // Array to store aggregated errors
-    AggregatedError m_errorAggregations[];
+    // Aggregated errors array
+    AggregatedError m_aggregatedErrors[];
 
 public:
     // Constructor
@@ -49,14 +53,14 @@ public:
     // Destructor
     ~CLogManager()
     {
-        // Flush aggregated errors before destruction
-        FlushAggregatedErrors();
-        m_logger.FlushAllLogs();  // Ensure all logs are flushed
+        // Flush logs and errors before destruction
+        FlushAllLogs();
     }
 
     // Adjust logging parameters
     void SetLogLevel(LogLevelEnum logLevel)           { m_logger.SetLogLevel(logLevel); }
     void SetLogCategories(uint logCategories)         { m_logger.SetLogCategories(logCategories); }
+    uint GetLogCategories()                           { return m_logger.GetLogCategories(); }
     void EnableConsoleLogging(bool enable)            { m_logger.EnableConsoleLogging(enable); }
     void EnableDatabaseLogging(bool enable)           { m_logger.EnableDatabaseLogging(enable); }
     void EnableFileLogging(bool enable)               { m_logger.EnableFileLogging(enable); }
@@ -69,7 +73,7 @@ public:
     // Flush all logs and aggregated errors
     void FlushAllLogs()
     {
-        FlushAggregatedErrors();
+        FlushAggregatedErrors();  // Now integrated within CLogManager
         m_logger.FlushAllLogs();
     }
 
@@ -89,15 +93,15 @@ public:
         return m_logger.ShouldLog(messageLevel, category);
     }
 
-    // Aggregate errors by error code and message
+    // Aggregate an error
     void AggregateError(int errorCode, string errorMessage)
     {
-        for (int i = 0; i < ArraySize(m_errorAggregations); i++)
+        for (int i = 0; i < ArraySize(m_aggregatedErrors); i++)
         {
-            if (m_errorAggregations[i].errorCode == errorCode && m_errorAggregations[i].errorMessage == errorMessage)
+            if (m_aggregatedErrors[i].errorCode == errorCode && m_aggregatedErrors[i].errorMessage == errorMessage)
             {
-                m_errorAggregations[i].count++;
-                m_errorAggregations[i].lastOccurrence = TimeCurrent();
+                m_aggregatedErrors[i].count++;
+                m_aggregatedErrors[i].lastOccurrence = TimeCurrent();
                 return;
             }
         }
@@ -109,16 +113,16 @@ public:
         newError.firstOccurrence = TimeCurrent();
         newError.lastOccurrence = TimeCurrent();
 
-        ArrayResize(m_errorAggregations, ArraySize(m_errorAggregations) + 1);
-        m_errorAggregations[ArraySize(m_errorAggregations) - 1] = newError;
+        ArrayResize(m_aggregatedErrors, ArraySize(m_aggregatedErrors) + 1);
+        m_aggregatedErrors[ArraySize(m_aggregatedErrors) - 1] = newError;
     }
 
-    // Flush aggregated errors to database
+    // Flush aggregated errors to the database
     void FlushAggregatedErrors()
     {
-        for (int i = 0; i < ArraySize(m_errorAggregations); i++)
+        for (int i = 0; i < ArraySize(m_aggregatedErrors); i++)
         {
-            AggregatedError error = m_errorAggregations[i];
+            AggregatedError error = m_aggregatedErrors[i];
 
             // Prepare SQL insertion query
             string insertQuery = "INSERT INTO ErrorAggregations (ErrorCode, ErrorMessage, Count, FirstOccurrence, LastOccurrence) "
@@ -132,11 +136,57 @@ public:
             string errorMsg;
             if (!dbManager.ExecuteSQLQuery(insertQuery, errorMsg))
             {
-                PrintFormat("Failed to log aggregated error to database. Error: %s", errorMsg);
+                // Call LogMessage directly
+                LogMessage("Failed to log aggregated error to database. Error: " + errorMsg, LOG_LEVEL_ERROR, LOG_CAT_DATABASE);
             }
         }
 
-        ArrayResize(m_errorAggregations, 0); // Clear aggregated errors after flushing
+        ArrayResize(m_aggregatedErrors, 0);  // Clear aggregated errors after flushing
+    }
+
+    // LogFailedTrade Method
+    void LogFailedTrade(string reason, double atrValue, string symbol, uint errorCode = 0, string errorDescription = "")
+    {
+        datetime currentTime = TimeCurrent();
+        string date = TimeToString(currentTime, TIME_DATE);
+        string time = TimeToString(currentTime, TIME_SECONDS | TIME_MINUTES);
+
+        // Sanitize and handle single quotes in reason
+        string sanitizedReason = SanitizeForSQL(reason);
+
+        // Fetch or generate the error code and description
+        if (errorCode == 0)
+        {
+            errorCode = GetLastError();
+            errorDescription = ErrorDescription((int)errorCode);
+            ResetLastError();
+        }
+
+        // Use FormatErrorMessage from Utils.mqh
+        string fullReason = sanitizedReason + " - " + FormatErrorMessage(errorCode, errorDescription);
+
+        // Prepare the SQL query
+        string insertQuery = "INSERT INTO TradeLog (Date, Time, Symbol, Remarks, ATR) VALUES ("
+                             "'" + date + "',"
+                             "'" + time + "',"
+                             "'" + symbol + "',"
+                             "'" + SanitizeForSQL(fullReason) + "',"
+                             + DoubleToString(atrValue, _Digits) + ");";
+
+        // Execute the SQL query using dbManager
+        string errorMsg;
+        if (!dbManager.ExecuteSQLQuery(insertQuery, errorMsg))
+        {
+            // Call LogMessage directly
+            LogMessage("Error inserting failed trade log to database: " + errorMsg, LOG_LEVEL_ERROR, LOG_CAT_DATABASE);
+        }
+        else
+        {
+            LogMessage("Failed trade logged to database successfully.", LOG_LEVEL_INFO, LOG_CAT_DATABASE);
+        }
+
+        // Aggregate the error
+        AggregateError((int)errorCode, fullReason);
     }
 };
 

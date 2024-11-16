@@ -6,6 +6,10 @@
 #include "WPRIndicator.mqh"
 #include "TrendIndicator.mqh"
 #include "VolumeProfileIndicator.mqh" // Include the Volume Profile Indicator
+#include "GlobalDefinitions.mqh"      // Include global definitions
+#include "LogManager.mqh"             // Include LogManager
+
+extern CLogManager logManager;        // Declare logManager as external
 
 class IndicatorManager
 {
@@ -69,7 +73,8 @@ public:
         atrIndicator = new ATRIndicator(symbol, atrTimeframe, atrPeriodParam);
         if (!atrIndicator.Initialize())
         {
-            Print("Failed to initialize ATR Indicator");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to initialize ATR Indicator.");
             return false;
         }
 
@@ -77,7 +82,8 @@ public:
         wprIndicator = new WPRIndicator(symbol, wprTimeframe, wprPeriod);
         if (!wprIndicator.Initialize())
         {
-            Print("Failed to initialize WPR Indicator");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to initialize WPR Indicator.");
             return false;
         }
 
@@ -85,7 +91,8 @@ public:
         trendIndicator = new TrendIndicator(symbol, trendTimeframe, trendMAPeriod, trendMAMethod);
         if (!trendIndicator.Initialize())
         {
-            Print("Failed to initialize Trend Indicator");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to initialize Trend Indicator.");
             return false;
         }
 
@@ -93,7 +100,8 @@ public:
         volumeProfileIndicator = new VolumeProfileIndicator(symbol, volumeProfileTimeframe, volumeProfilePeriod);
         if (!volumeProfileIndicator.Initialize())
         {
-            Print("Failed to initialize Volume Profile Indicator");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to initialize Volume Profile Indicator.");
             return false;
         }
 

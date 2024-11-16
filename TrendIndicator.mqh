@@ -3,6 +3,10 @@
 #define __TRENDINDICATOR_MQH__
 
 #include "IndicatorBase.mqh"
+#include "GlobalDefinitions.mqh"  // Include global definitions
+#include "LogManager.mqh"         // Include LogManager
+
+extern CLogManager logManager;    // Declare logManager as external
 
 class TrendIndicator : public IndicatorBase
 {
@@ -22,7 +26,8 @@ public:
         m_handle = iMA(m_symbol, m_timeframe, m_maPeriod, 0, m_maMethod, m_appliedPrice);
         if (m_handle == INVALID_HANDLE)
         {
-            Print("Failed to create MA indicator handle for trend detection.");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to create MA indicator handle for trend detection.");
             return false;
         }
         return true;
@@ -31,12 +36,16 @@ public:
     virtual double GetValue(int shift = 0)
     {
         if (m_handle == INVALID_HANDLE)
+        {
+            // Handle invalid handle without logging
             return 0.0;
+        }
 
         double value[1];
         if (CopyBuffer(m_handle, 0, shift, 1, value) <= 0)
         {
-            Print("Failed to get MA value for trend detection.");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to get MA value for trend detection.");
             return 0.0;
         }
         return value[0];

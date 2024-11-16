@@ -3,7 +3,8 @@
 #ifndef __UTILS_MQH__
 #define __UTILS_MQH__
 
-string SanitizeForSQL(string text) {
+string SanitizeForSQL(string text)
+{
     StringReplace(text, "'", "''");
     return text;
 }
@@ -55,7 +56,8 @@ string ErrorDescription(int errorCode)
 //+------------------------------------------------------------------+
 //| Format Error Message Function                                    |
 //+------------------------------------------------------------------+
-string FormatErrorMessage(uint errorCode, string errorDescription) {
+string FormatErrorMessage(uint errorCode, string errorDescription)
+{
     return "Error " + IntegerToString(errorCode) + ": " + errorDescription;
 }
 

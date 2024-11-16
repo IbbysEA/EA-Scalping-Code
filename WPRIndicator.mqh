@@ -3,6 +3,10 @@
 #define __WPRINDICATOR_MQH__
 
 #include "IndicatorBase.mqh"
+#include "GlobalDefinitions.mqh"  // Include global definitions
+#include "LogManager.mqh"         // Include LogManager
+
+extern CLogManager logManager;    // Declare logManager as external
 
 class WPRIndicator : public IndicatorBase
 {
@@ -20,7 +24,8 @@ public:
         m_handle = iWPR(m_symbol, m_timeframe, m_period);
         if (m_handle == INVALID_HANDLE)
         {
-            Print("Failed to create WPR indicator handle");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to create WPR indicator handle.");
             return false;
         }
         return true;
@@ -29,12 +34,16 @@ public:
     virtual double GetValue(int shift = 0)
     {
         if (m_handle == INVALID_HANDLE)
+        {
+            // Handle invalid handle without logging
             return 0.0;
+        }
 
         double value[1];
         if (CopyBuffer(m_handle, 0, shift, 1, value) <= 0)
         {
-            Print("Failed to get WPR value");
+            // Critical error, replace Print with LOG_MESSAGE
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_INDICATORS, "Failed to get WPR value.");
             return 0.0;
         }
         return value[0];

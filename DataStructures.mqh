@@ -47,7 +47,7 @@ struct TradeData
    string remarks;
 };
 
-// New struct for error aggregation
+// Structure to store aggregated error data
 struct AggregatedError
 {
    int errorCode;
