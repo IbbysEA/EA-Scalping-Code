@@ -4,6 +4,8 @@
 #define __DATABASEMANAGER_MQH__
 
 #include "DatabaseImports.mqh"
+#include "DataStructures.mqh"   // Include TradeData definition
+#include "Utils.mqh"            // For StringReplace and other utility functions
 
 // Import ShellExecute function from shell32.dll for opening CSV in Excel
 #import "shell32.dll"
@@ -90,64 +92,64 @@ public:
         return (execResult == 0);
     }
 
-bool CreateTables()
-{
-    string errorMsg;
-
-    // Create 'trades' table
-    string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
-                               "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
-                               "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
-                               "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
-                               "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
-                               "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
-
-    if (!ExecuteSQLQuery(createTradesTable, errorMsg))
+    // Create tables
+    bool CreateTables()
     {
-        PrintFormat("Failed to create 'trades' table. Error: %s", errorMsg);
-        return false;
+        string errorMsg;
+
+        // Create 'trades' table
+        string createTradesTable = "CREATE TABLE IF NOT EXISTS trades ("
+                                   "TradeID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                                   "EntryDate TEXT, EntryTime TEXT, ExitDate TEXT, ExitTime TEXT, "
+                                   "Symbol TEXT, TradeType TEXT, EntryPrice REAL, ExitPrice REAL, "
+                                   "ReasonEntry TEXT, ReasonExit TEXT, ProfitLoss REAL, Swap REAL, Commission REAL, "
+                                   "ATR REAL, WPRValue REAL, Duration INTEGER, LotSize REAL, Remarks TEXT);";
+
+        if (!ExecuteSQLQuery(createTradesTable, errorMsg))
+        {
+            PrintFormat("Failed to create 'trades' table. Error: %s", errorMsg);
+            return false;
+        }
+
+        // Create 'TradeLog' table
+        string createTradeLogEntries = "CREATE TABLE IF NOT EXISTS TradeLog ("
+                                       "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                                       "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
+
+        if (!ExecuteSQLQuery(createTradeLogEntries, errorMsg))
+        {
+            PrintFormat("Failed to create 'TradeLog' table. Error: %s", errorMsg);
+            return false;
+        }
+
+        // Create 'LogEntries' table
+        string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
+                                       "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                                       "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
+
+        if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
+        {
+            PrintFormat("Failed to create 'LogEntries' table. Error: %s", errorMsg);
+            return false;
+        }
+
+        // Create 'ErrorAggregations' table
+        string createErrorAggregationsTable = "CREATE TABLE IF NOT EXISTS ErrorAggregations ("
+                                              "ErrorCode INTEGER, "
+                                              "ErrorMessage TEXT, "
+                                              "Count INTEGER, "
+                                              "FirstOccurrence TEXT, "
+                                              "LastOccurrence TEXT, "
+                                              "UNIQUE (ErrorCode, ErrorMessage));";
+
+        if (!ExecuteSQLQuery(createErrorAggregationsTable, errorMsg))
+        {
+            PrintFormat("Failed to create 'ErrorAggregations' table. Error: %s", errorMsg);
+            return false;
+        }
+
+        return true;
     }
-
-    // Create 'TradeLog' table
-    string createTradeLogEntries = "CREATE TABLE IF NOT EXISTS TradeLog ("
-                                   "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-                                   "Date TEXT, Time TEXT, Symbol TEXT, Remarks TEXT, ATR REAL);";
-
-    if (!ExecuteSQLQuery(createTradeLogEntries, errorMsg))
-    {
-        PrintFormat("Failed to create 'TradeLog' table. Error: %s", errorMsg);
-        return false;
-    }
-
-    // Create 'LogEntries' table
-    string createLogEntriesTable = "CREATE TABLE IF NOT EXISTS LogEntries ("
-                                   "LogID INTEGER PRIMARY KEY AUTOINCREMENT, "
-                                   "Date TEXT, Time TEXT, LogLevel TEXT, Category TEXT, Message TEXT);";
-
-    if (!ExecuteSQLQuery(createLogEntriesTable, errorMsg))
-    {
-        PrintFormat("Failed to create 'LogEntries' table. Error: %s", errorMsg);
-        return false;
-    }
-
-    // Adjusted 'ErrorAggregations' table for error aggregation
-    string createErrorAggregationsTable = "CREATE TABLE IF NOT EXISTS ErrorAggregations ("
-                                          "ErrorCode INTEGER, "
-                                          "ErrorMessage TEXT, "
-                                          "Count INTEGER, "
-                                          "FirstOccurrence TEXT, "
-                                          "LastOccurrence TEXT, "
-                                          "UNIQUE (ErrorCode, ErrorMessage));";
-
-    if (!ExecuteSQLQuery(createErrorAggregationsTable, errorMsg))
-    {
-        PrintFormat("Failed to create 'ErrorAggregations' table. Error: %s", errorMsg);
-        return false;
-    }
-
-    return true;
-}
-
 
     // Get the database handle
     ulong GetDBHandle()
@@ -198,6 +200,50 @@ bool CreateTables()
             return false;
         }
         return true;
+    }
+
+    // LogTrade method
+    void LogTrade(TradeData &tradeData)
+    {
+        // Sanitize strings for SQL
+        string sanitizedReasonEntry = tradeData.reasonEntry;
+        string sanitizedReasonExit = tradeData.reasonExit;
+        string sanitizedRemarks = tradeData.remarks;
+        StringReplace(sanitizedReasonEntry, "'", "''");
+        StringReplace(sanitizedReasonExit, "'", "''");
+        StringReplace(sanitizedRemarks, "'", "''");
+
+        // Prepare SQL INSERT statement without TradeID
+        string insertQuery = "INSERT INTO trades (EntryDate, EntryTime, ExitDate, ExitTime, Symbol, TradeType, EntryPrice, ExitPrice, "
+                             "ReasonEntry, ReasonExit, ProfitLoss, Swap, Commission, ATR, WPRValue, Duration, LotSize, Remarks) VALUES (" +
+                             "'" + tradeData.entryDate + "'," +
+                             "'" + tradeData.entryTime + "'," +
+                             "'" + tradeData.exitDate + "'," +
+                             "'" + tradeData.exitTime + "'," +
+                             "'" + tradeData.symbol + "'," +
+                             "'" + tradeData.tradeType + "'," +
+                             DoubleToString(tradeData.entryPrice, _Digits) + "," +
+                             DoubleToString(tradeData.exitPrice, _Digits) + "," +
+                             "'" + sanitizedReasonEntry + "'," +
+                             "'" + sanitizedReasonExit + "'," +
+                             DoubleToString(tradeData.profitLoss, 2) + "," +
+                             DoubleToString(tradeData.swap, 2) + "," +           // Include swap
+                             DoubleToString(tradeData.commission, 2) + "," +    // Include commission
+                             DoubleToString(tradeData.atr, _Digits) + "," +
+                             DoubleToString(tradeData.wprValue, 2) + "," +
+                             IntegerToString(tradeData.duration) + "," +
+                             DoubleToString(tradeData.lotSize, 2) + "," +
+                             "'" + sanitizedRemarks + "');";
+
+        string errorMsg;
+        if (!ExecuteSQLQuery(insertQuery, errorMsg))
+        {
+            Print("Error inserting trade log to database: " + errorMsg);
+        }
+        else
+        {
+            Print("Trade logged to database successfully.");
+        }
     }
 };
 

@@ -76,4 +76,35 @@ ulong GetCustomTickCount()
     return (ulong)(GetMicrosecondCount() / 1000);
 }
 
+//+------------------------------------------------------------------+
+//| Validate Indicator Value                                         |
+//+------------------------------------------------------------------+
+bool IsValidValue(double value)
+{
+    return MathIsValidNumber(value);
+}
+
+//+------------------------------------------------------------------+
+//| Get Reason Exit String                                           |
+//+------------------------------------------------------------------+
+string GetReasonExitString(ENUM_DEAL_REASON reason)
+{
+    switch (reason)
+    {
+        case DEAL_REASON_SL:
+            return "Stop Loss Hit";
+        case DEAL_REASON_TP:
+            return "Take Profit Hit";
+        case DEAL_REASON_SO:
+            return "Stop Out";
+        case DEAL_REASON_CLIENT:
+            return "Closed Manually";
+        case DEAL_REASON_EXPERT:
+            return "Closed by Expert";
+        // Add other cases as needed
+        default:
+            return "Unknown Reason";
+    }
+}
+
 #endif // __UTILS_MQH__

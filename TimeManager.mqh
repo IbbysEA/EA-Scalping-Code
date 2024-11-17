@@ -3,7 +3,7 @@
 #ifndef __TIMEMANAGER_MQH__
 #define __TIMEMANAGER_MQH__
 
-#include "GlobalVariables.mqh"
+#include "GlobalVariables.mqh"  // Include to access global 'logManager'
 
 class TimeManager
 {
@@ -52,7 +52,7 @@ public:
         dailyTradeCount = 0;
     }
 
-   // Methods
+    // Methods
 
     // Check if the cooldown period is over with timing and profiling
     bool IsCooldownPeriodOver()
@@ -66,90 +66,101 @@ public:
         // End timing and log the duration
         ulong endTime = GetCustomTickCount();
         ulong duration = endTime - startTime;
-        logManager.LogMessage("IsCooldownPeriodOver execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_INFO, LOG_CAT_PROFILING);
+        logManager.LogMessage("IsCooldownPeriodOver execution time: " + IntegerToString((int)duration) + " ms.", LOG_LEVEL_DEBUG, LOG_CAT_PROFILING);
 
         return isOver;
     }
 
-   // Check and reset daily trade count if a new day has started
-   void CheckAndResetDailyTradeCount()
-   {
-      datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
-      if (currentDay != m_lastTradeDay)
-      {
-         m_lastTradeDay = currentDay;
-         dailyTradeCount = 0;
-      }
-   }
+    // Check and reset daily trade count if a new day has started
+    void CheckAndResetDailyTradeCount()
+    {
+        datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
+        if (currentDay != m_lastTradeDay)
+        {
+            m_lastTradeDay = currentDay;
+            dailyTradeCount = 0;
+            logManager.LogMessage("Daily trade count reset for new day.", LOG_LEVEL_INFO, LOG_CAT_TRADE_LIMIT);
+        }
+    }
 
-   // Record a trade execution and update the last trade time and daily trade count
-   void RecordTradeExecution(bool successful)
-   {
-      m_lastTradeTime = TimeCurrent();
-      if (successful)
-         dailyTradeCount++;
-   }
+    // Record a trade execution and update the last trade time and daily trade count
+    void RecordTradeExecution(bool successful)
+    {
+        m_lastTradeTime = TimeCurrent();
+        if (successful)
+        {
+            dailyTradeCount++;
+            logManager.LogMessage("Trade executed. Updated daily trade count: " + IntegerToString(dailyTradeCount), LOG_LEVEL_INFO, LOG_CAT_TRADE_EXECUTION);
+        }
+    }
 
-   // Check if the maximum number of trades per day has been reached
-   bool IsMaxTradesReached()
-   {
-      return dailyTradeCount >= m_maxTradesPerDay;
-   }
+    // Check if the maximum number of trades per day has been reached
+    bool IsMaxTradesReached()
+    {
+        bool maxReached = dailyTradeCount >= m_maxTradesPerDay;
+        if (maxReached)
+        {
+            logManager.LogMessage("Maximum trades per day reached.", LOG_LEVEL_WARNING, LOG_CAT_TRADE_LIMIT);
+        }
+        return maxReached;
+    }
 
-   // Determine if trades should be closed before the end of the day
-   bool ShouldCloseTradesBeforeEndOfDay()
-   {
-      datetime currentTime = TimeCurrent();
-      MqlDateTime timeStruct;
-      TimeToStruct(currentTime, timeStruct);
+    // Determine if trades should be closed before the end of the day
+    bool ShouldCloseTradesBeforeEndOfDay()
+    {
+        datetime currentTime = TimeCurrent();
+        MqlDateTime timeStruct;
+        TimeToStruct(currentTime, timeStruct);
 
-      if (timeStruct.hour > m_closeTradesHour || (timeStruct.hour == m_closeTradesHour && timeStruct.min >= m_closeTradesMinute))
-         return true;
-      return false;
-   }
+        if (timeStruct.hour > m_closeTradesHour || (timeStruct.hour == m_closeTradesHour && timeStruct.min >= m_closeTradesMinute))
+            return true;
+        return false;
+    }
 
-   // Check if it's a new trading day
-   bool IsNewTradingDay()
-   {
-      datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
-      if (currentDay != m_lastTradeDay)
-      {
-         m_lastTradeDay = currentDay;
-         dailyTradeCount = 0;
-         return true;
-      }
-      return false;
-   }
+    // Check if it's a new trading day
+    bool IsNewTradingDay()
+    {
+        datetime currentDay = (datetime)(int)(TimeCurrent() / 86400) * 86400;
+        if (currentDay != m_lastTradeDay)
+        {
+            m_lastTradeDay = currentDay;
+            dailyTradeCount = 0;
+            logManager.LogMessage("New trading day detected.", LOG_LEVEL_INFO, LOG_CAT_TRADE_LIMIT);
+            return true;
+        }
+        return false;
+    }
 
-   // Check if current time is within trading hours
-   bool IsWithinTradingHours()
-   {
-      datetime currentTime = TimeCurrent();
-      MqlDateTime timeStruct;
-      TimeToStruct(currentTime, timeStruct);
+    // Check if current time is within trading hours
+    bool IsWithinTradingHours()
+    {
+        datetime currentTime = TimeCurrent();
+        MqlDateTime timeStruct;
+        TimeToStruct(currentTime, timeStruct);
 
-      // Exclude weekends (Saturday and Sunday)
-      if (timeStruct.day_of_week == 0 || timeStruct.day_of_week == 6)
-         return false;
+        // Exclude weekends (Saturday and Sunday)
+        if (timeStruct.day_of_week == 0 || timeStruct.day_of_week == 6)
+            return false;
 
-      // Check if current hour is within trading hours
-      if (timeStruct.hour < m_tradingStartHour || timeStruct.hour > m_tradingEndHour)
-         return false;
+        // Check if current hour is within trading hours
+        if (timeStruct.hour < m_tradingStartHour || timeStruct.hour > m_tradingEndHour)
+            return false;
 
-      return true;
-   }
+        return true;
+    }
 
-   // Reset daily trade count
-   void ResetDailyTradeCount()
-   {
-      dailyTradeCount = 0;
-   }
+    // Reset daily trade count
+    void ResetDailyTradeCount()
+    {
+        dailyTradeCount = 0;
+        logManager.LogMessage("Daily trade count reset manually.", LOG_LEVEL_INFO, LOG_CAT_TRADE_LIMIT);
+    }
 
-   // Get the daily trade count
-   int GetDailyTradeCount()
-   {
-      return dailyTradeCount;
-   }
+    // Get the daily trade count
+    int GetDailyTradeCount()
+    {
+        return dailyTradeCount;
+    }
 };
 
 #endif // __TIMEMANAGER_MQH__
