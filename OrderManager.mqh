@@ -7,6 +7,7 @@
 #include "Logger.mqh"
 #include "DataStructures.mqh"
 #include "GlobalVariables.mqh"
+#include "Utils.mqh"  // Include Utils to access utility functions
 
 class OrderManager
 {
@@ -30,7 +31,19 @@ public:
 
     ~OrderManager() {}
 
-    bool OpenOrder(ENUM_ORDER_TYPE orderType, double lotSize, double entryPrice, double slPrice, double tpPrice, string reason, double atrValue, double wprValue, OpenPositionData &newPosition);
+    // Updated OpenOrder method to include errorCode and errorDescription
+    bool OpenOrder(ENUM_ORDER_TYPE orderType,
+                   double lotSize,
+                   double entryPrice,
+                   double slPrice,
+                   double tpPrice,
+                   string reason,
+                   double atrValue,
+                   double wprValue,
+                   OpenPositionData &newPosition,
+                   uint &errorCode,
+                   string &errorDescription);
+
     bool CloseOrder(ulong positionID);
     bool ModifyOrder(ulong positionID, double newSL, double newTP);
 };
@@ -66,7 +79,7 @@ bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double 
     return true;
 }
 
-// Implementation of OpenOrder with timing and profiling
+// Updated OpenOrder method with error handling
 bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
                              double lotSize,
                              double entryPrice,
@@ -75,10 +88,16 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
                              string reason,
                              double atrValue,
                              double wprValue,
-                             OpenPositionData &newPosition)
+                             OpenPositionData &newPosition,
+                             uint &errorCode,
+                             string &errorDescription)
 {
     // Start timing
     ulong startTime = GetCustomTickCount();
+
+    // Initialize error code and description
+    errorCode = 0;
+    errorDescription = "";
 
     // Validate SL and TP levels before opening the position
     if (!CheckStopLossAndTakeProfit(orderType, slPrice, tpPrice, entryPrice))
@@ -113,13 +132,17 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
             }
             else
             {
-                logManager.LogMessage("Failed to select deal after trade execution.", LOG_LEVEL_ERROR);
+                errorCode = GetLastError();
+                errorDescription = "Failed to select deal after trade execution.";
+                logManager.LogMessage(errorDescription, LOG_LEVEL_ERROR);
                 return false;
             }
         }
         else
         {
-            logManager.LogMessage("Failed to get deal ticket after trade execution.", LOG_LEVEL_ERROR);
+            errorCode = GetLastError();
+            errorDescription = "Failed to get deal ticket after trade execution.";
+            logManager.LogMessage(errorDescription, LOG_LEVEL_ERROR);
             return false;
         }
 
@@ -155,8 +178,8 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
     else
     {
         // Handle trade failure
-        uint errorCode = trade.ResultRetcode();
-        string errorDescription = trade.ResultRetcodeDescription();
+        errorCode = trade.ResultRetcode();
+        errorDescription = trade.ResultRetcodeDescription();
         logManager.LogMessage("Trade Order Failed: " + errorDescription, LOG_LEVEL_ERROR);
 
         // End timing and log the duration
