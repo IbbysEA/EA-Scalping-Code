@@ -103,6 +103,8 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
     if (!CheckStopLossAndTakeProfit(orderType, slPrice, tpPrice, entryPrice))
     {
         // Handle invalid SL/TP
+        errorCode = ERR_INVALID_STOPS;
+        errorDescription = "Invalid SL/TP levels.";
         return false;
     }
 

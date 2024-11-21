@@ -2,8 +2,6 @@
 //|                      PositionTracker.mqh                         |
 //|        Manages tracking of open and closed positions             |
 //+------------------------------------------------------------------+
-#ifndef __POSITIONTRACKER_MQH__
-#define __POSITIONTRACKER_MQH__
 
 #include <Trade\Trade.mqh>
 #include "DataStructures.mqh"
@@ -12,32 +10,44 @@
 #include "GlobalVariables.mqh"
 #include "DatabaseManager.mqh"
 #include "GlobalDefinitions.mqh"
-#include "Utils.mqh"  // Include Utils.mqh to access GetReasonExitString
+#include "Utils.mqh"
 
 // Externally defined variables and instances
-extern CLogManager logManager;
+extern CLogManager    logManager;
 extern CDatabaseManager dbManager;
+extern CTrade         trade;
+
+// Removed extern int MagicNumber;
+// Removed extern int Slippage;
 
 class PositionTracker
 {
 private:
     OpenPositionData positions[];
-    ulong loggedPositionIDs[]; // Array to keep track of logged positions
+    ulong loggedPositionIDs[];
+    int m_magicNumber;
+    int m_slippage;
 
 public:
-    PositionTracker()
+    // Constructor and Destructor
+    PositionTracker(int magicNumber, int slippage)
     {
+        m_magicNumber = magicNumber;
+        m_slippage = slippage;
     }
 
-    ~PositionTracker() {}
+    ~PositionTracker()
+    {
+        // Cleanup if needed
+    }
 
     // Existing methods
     void AddPosition(const OpenPositionData &positionData);
     void RemovePositionByIndex(int index);
-    int FindPositionIndex(ulong positionID);
+    int  FindPositionIndex(ulong positionID);
     bool GetPositionData(ulong positionID, OpenPositionData &outPositionData);
     void UpdatePositionData(ulong positionID, const OpenPositionData &positionData);
-    int GetTotalPositions();
+    int  GetTotalPositions();
     bool GetPositionByIndex(int index, OpenPositionData &outPositionData);
     void ClearAllPositions();
 
@@ -50,9 +60,11 @@ public:
     void LogClosedTrade(ulong positionID, ulong closingDealTicket);
     void HandleOpenPositionsOnDeinit();
 
+    // Method to close all positions
+    void CloseAllPositions();
+
 private:
     void LogTrade(TradeData &tradeData);
-    // Removed GetReasonExitString function from here
 };
 
 //+------------------------------------------------------------------+
@@ -257,6 +269,8 @@ ulong PositionTracker::FindLastDealForPosition(ulong positionID)
 
 void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
 {
+    // Full implementation of LogClosedTrade method
+
     // Check if the positionID has already been logged
     if (IsPositionLogged(positionID))
     {
@@ -386,6 +400,8 @@ void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
 
 void PositionTracker::LogTrade(TradeData &tradeData)
 {
+    // Full implementation of LogTrade method
+
     // Sanitize strings for SQL
     string sanitizedReasonEntry = SanitizeForSQL(tradeData.reasonEntry);
     string sanitizedReasonExit = SanitizeForSQL(tradeData.reasonExit);
@@ -426,6 +442,8 @@ void PositionTracker::LogTrade(TradeData &tradeData)
 
 void PositionTracker::HandleOpenPositionsOnDeinit()
 {
+    // Full implementation of HandleOpenPositionsOnDeinit method
+
     // Get total positions from PositionTracker
     int totalPositions = GetTotalPositions();
     for (int i = 0; i < totalPositions; i++)
@@ -540,4 +558,57 @@ void PositionTracker::HandleOpenPositionsOnDeinit()
     ClearAllPositions();
 }
 
-#endif // __POSITIONTRACKER_MQH__
+void PositionTracker::CloseAllPositions()
+{
+    // Start timing for CloseAllPositions
+    ulong startTime = GetCustomTickCount();
+
+    int totalPositions = PositionsTotal();
+    for (int i = totalPositions - 1; i >= 0; i--)
+    {
+        ulong ticket = PositionGetTicket(i);
+        if (PositionSelectByTicket(ticket))
+        {
+            ulong positionID = PositionGetInteger(POSITION_TICKET);
+            string symbol = PositionGetString(POSITION_SYMBOL);
+            long magic = PositionGetInteger(POSITION_MAGIC);
+
+            // Close only positions with the EA's magic number
+            if (magic != m_magicNumber)
+                continue;
+
+            // Close the position
+            trade.SetExpertMagicNumber(m_magicNumber);
+            trade.SetDeviationInPoints(m_slippage);
+
+            bool result = trade.PositionClose(symbol);
+
+            if (result)
+            {
+                if (logManager.ShouldLog(LOG_LEVEL_INFO, LOG_CAT_TRADE_MANAGEMENT))
+                {
+                    string logMsg = "Closed position ID " + IntegerToString(positionID) + " due to end of day.";
+                    LOG_MESSAGE(LOG_LEVEL_INFO, LOG_CAT_TRADE_MANAGEMENT, logMsg);
+                }
+            }
+            else
+            {
+                if (logManager.ShouldLog(LOG_LEVEL_ERROR, LOG_CAT_TRADE_MANAGEMENT))
+                {
+                    string logMsg = "Failed to close position ID " + IntegerToString(positionID) +
+                                    ". Error: " + trade.ResultRetcodeDescription();
+                    LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_TRADE_MANAGEMENT, logMsg);
+                }
+            }
+        }
+    }
+
+    // End timing and log duration for CloseAllPositions
+    ulong endTime = GetCustomTickCount();
+    ulong duration = endTime - startTime;
+    if (logManager.ShouldLog(LOG_LEVEL_DEBUG, LOG_CAT_PROFILING))
+    {
+        string logMsg = "CloseAllPositions execution time: " + IntegerToString((int)duration) + " ms.";
+        LOG_MESSAGE(LOG_LEVEL_DEBUG, LOG_CAT_PROFILING, logMsg);
+    }
+}
