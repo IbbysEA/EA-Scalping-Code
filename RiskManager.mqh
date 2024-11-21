@@ -18,9 +18,17 @@ public:
     // Constructor
     RiskManager(double atrSLMultiplierHighVol, double atrSLMultiplierLowVol,
                 double riskToRewardRatio, double highRisk, double lowRisk,
-                double atrVolatilityThresholdParam) // Renamed parameter to avoid variable hiding
+                double atrVolatilityThresholdParam,
+                bool enableTickVolumeFilterParam,
+                int tickVolumePeriodsParam,
+                double tickVolumeMultiplierParam,
+                ENUM_TIMEFRAMES tickVolumeTimeframeParam)
         : analyseManager(atrSLMultiplierHighVol, atrSLMultiplierLowVol, riskToRewardRatio, highRisk, lowRisk, false),
-          volatilityManager(atrVolatilityThresholdParam) {}
+          volatilityManager(atrVolatilityThresholdParam,
+                            enableTickVolumeFilterParam,
+                            tickVolumePeriodsParam,
+                            tickVolumeMultiplierParam,
+                            tickVolumeTimeframeParam) {}
 
     // Expose AnalyseManager methods
     bool CalculateSLTP(double atr, double &stopLossPoints, double &takeProfitPoints)
@@ -52,9 +60,17 @@ public:
         volatilityManager.LogVolatilityState(atrValue);
     }
 
+    bool IsTickVolumeIncreasing()
+    {
+        return volatilityManager.IsTickVolumeIncreasing();
+    }
+
     // Getters for risk percentages
     double GetHighRisk() { return analyseManager.GetHighRisk(); }
     double GetLowRisk() { return analyseManager.GetLowRisk(); }
+
+    // Getter for volatility state
+    bool IsHighVolatility() { return volatilityManager.IsHighVolatility(); }
 };
 
 #endif // __RISKMANAGER_MQH__

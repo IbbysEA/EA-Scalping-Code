@@ -110,12 +110,38 @@ public:
         return true;
     }
 
+    // Method to get the ATR value with checks
+    double GetATRValue()
+    {
+        if (atrIndicator == NULL)
+        {
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_AGGREGATED_ERRORS, "ATR Indicator not initialized.");
+            return 0.0;
+        }
+        double atrValue = atrIndicator.GetValue();
+        if (!IsValidValue(atrValue))
+        {
+            LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_ATR, "Invalid ATR value.");
+            return 0.0;
+        }
+        return atrValue;
+    }
+
     // Method to get the Williams %R value
     double GetWPRValue()
     {
         if (wprIndicator == NULL)
-            return EMPTY_VALUE;
-        return wprIndicator.GetValue();
+        {
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_AGGREGATED_ERRORS, "WPR Indicator not initialized.");
+            return 0.0;
+        }
+        double wprValue = wprIndicator.GetValue();
+        if (!IsValidValue(wprValue))
+        {
+            LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION, "Invalid Williams %R value.");
+            return 0.0;
+        }
+        return wprValue;
     }
 
     // Method to get the High Volume Level from Volume Profile
@@ -132,6 +158,17 @@ public:
         if (volumeProfileIndicator == NULL)
             return 0.0;
         return volumeProfileIndicator.GetLowVolumeLevel();
+    }
+
+    // Method to get the Trend Direction
+    int GetTrendDirection()
+    {
+        if (trendIndicator == NULL)
+        {
+            LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_TRADE_EXECUTION, "Trend Indicator not initialized.");
+            return 0; // Neutral trend if failed
+        }
+        return trendIndicator.GetTrendDirection();
     }
 };
 
