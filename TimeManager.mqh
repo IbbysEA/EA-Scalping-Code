@@ -4,6 +4,7 @@
 #define __TIMEMANAGER_MQH__
 
 #include "GlobalVariables.mqh"  // Include to access global 'logManager'
+#include "PositionTracker.mqh"  // Include to access PositionTracker
 
 class TimeManager
 {
@@ -15,6 +16,7 @@ private:
     int m_closeTradesMinute;
     int m_tradingStartHour;
     int m_tradingEndHour;
+    bool m_CloseTradesBeforeEndOfDay;
 
     datetime m_lastTradeTime;
     datetime m_lastTradeDay;
@@ -31,6 +33,7 @@ public:
         m_closeTradesMinute  = 0;
         m_tradingStartHour   = 0;
         m_tradingEndHour     = 0;
+        m_CloseTradesBeforeEndOfDay = false;
 
         m_lastTradeTime = 0;
         m_lastTradeDay  = 0;
@@ -38,7 +41,8 @@ public:
     }
 
     // Initialization method
-    void Init(int cooldownTimeInput, int maxTradesPerDayInput, int closeTradesHourInput, int closeTradesMinuteInput, int tradingStartHourInput, int tradingEndHourInput)
+    void Init(int cooldownTimeInput, int maxTradesPerDayInput, int closeTradesHourInput, int closeTradesMinuteInput,
+              int tradingStartHourInput, int tradingEndHourInput, bool CloseTradesBeforeEndOfDayInput)
     {
         m_cooldownTime       = cooldownTimeInput;
         m_maxTradesPerDay    = maxTradesPerDayInput;
@@ -46,6 +50,7 @@ public:
         m_closeTradesMinute  = closeTradesMinuteInput;
         m_tradingStartHour   = tradingStartHourInput;
         m_tradingEndHour     = tradingEndHourInput;
+        m_CloseTradesBeforeEndOfDay = CloseTradesBeforeEndOfDayInput;
 
         m_lastTradeTime = 0;
         m_lastTradeDay  = 0;
@@ -160,6 +165,23 @@ public:
     int GetDailyTradeCount()
     {
         return dailyTradeCount;
+    }
+
+    // OnTimer method
+    void OnTimer(PositionTracker &posTracker)
+    {
+        // Close trades before end of day to avoid swaps
+        if (m_CloseTradesBeforeEndOfDay && ShouldCloseTradesBeforeEndOfDay())
+        {
+            logManager.LogMessage("End of day detected on timer. Closing all positions to avoid swaps.", LOG_LEVEL_INFO, LOG_CAT_TRADE_MANAGEMENT);
+            posTracker.CloseAllPositions();
+            return; // Skip further processing if positions are closed
+        }
+
+        // Flush logs to database
+        logManager.FlushLogsToDatabase();
+
+        // Do not flush aggregated errors here
     }
 };
 

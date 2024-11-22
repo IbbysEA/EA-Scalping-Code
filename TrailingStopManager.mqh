@@ -11,6 +11,9 @@
 #include "LogManager.mqh"
 #include "GlobalVariables.mqh"
 
+// Declare external instances if necessary
+extern CLogManager logManager;
+
 class TrailingStopManager
 {
 private:
@@ -38,6 +41,12 @@ public:
     void ManageTrailingStop(OpenPositionData &positionData);
     bool ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false);
     double AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol);
+
+    // Add the RemoveTrailingStop method
+    void RemoveTrailingStop(ulong positionID);
+
+    // Existing DrawTrailingStop method
+    void DrawTrailingStop(ulong positionID, double newSL);
 };
 
 // Implementations
@@ -150,13 +159,16 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
             if (ModifyPositionSL(positionID, desiredSL, tradeType))
             {
                 positionData.currentStopLoss = desiredSL; // Update current stop loss in the position data
-                positionData.profitLevelReached = i + 1; // Update profit level only if SL modification is successful
+                positionData.profitLevelReached = i + 1;  // Update profit level only if SL modification is successful
 
                 // Set trailing stop activation
                 positionData.trailingStopActivated = true;
                 positionData.profitLevelAtTrailingStop = ProfitLevels[i]; // Record the profit level
 
                 logManager.LogMessage("Successfully modified SL for position ID " + IntegerToString(positionID) + " to " + DoubleToString(desiredSL, digits), LOG_LEVEL_DEBUG);
+
+                // Draw the trailing stop line
+                DrawTrailingStop(positionID, desiredSL);
             }
             else
             {
@@ -167,13 +179,16 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
                     if (ModifyPositionSL(positionID, adjustedSL, tradeType, true))
                     {
                         positionData.currentStopLoss = adjustedSL; // Update current stop loss in the position data
-                        positionData.profitLevelReached = i + 1; // Update profit level only if SL modification is successful
+                        positionData.profitLevelReached = i + 1;   // Update profit level only if SL modification is successful
 
                         // Set trailing stop activation
                         positionData.trailingStopActivated = true;
                         positionData.profitLevelAtTrailingStop = ProfitLevels[i]; // Record the profit level
 
                         logManager.LogMessage("Adjusted SL for position ID " + IntegerToString(positionID) + " to closest allowed level " + DoubleToString(adjustedSL, digits), LOG_LEVEL_INFO);
+
+                        // Draw the trailing stop line
+                        DrawTrailingStop(positionID, adjustedSL);
                     }
                     else
                     {
@@ -193,7 +208,7 @@ void TrailingStopManager::ManageTrailingStop(OpenPositionData &positionData)
     }
 }
 
-bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted = false)
+bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, long tradeType, bool isAdjusted)
 {
     MqlTradeRequest request;
     MqlTradeResult result;
@@ -278,8 +293,6 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
     request.symbol = symbol;
     request.sl = newSL;
     request.tp = currentTP; // Preserve the existing TP
-    // If you have a MagicNumber accessible, set it here
-    // request.magic = MagicNumber;
 
     // Send the trade request
     if (!OrderSend(request, result))
@@ -293,10 +306,10 @@ bool TrailingStopManager::ModifyPositionSL(ulong positionID, double desiredSL, l
         logManager.LogMessage(errorMsg, LOG_LEVEL_ERROR);
         ResetLastError();
         return false;
-      }
-   return true;
+    }
+    return true;
 }
-   
+
 double TrailingStopManager::AdjustSLToBrokerLimits(double desiredSL, long tradeType, string symbol)
 {
     double currentPrice = (tradeType == POSITION_TYPE_BUY) ? SymbolInfoDouble(symbol, SYMBOL_BID) : SymbolInfoDouble(symbol, SYMBOL_ASK);
@@ -326,6 +339,34 @@ double TrailingStopManager::AdjustSLToBrokerLimits(double desiredSL, long tradeT
     }
 
     return adjustedSL;
+}
+
+// Implement the RemoveTrailingStop method
+void TrailingStopManager::RemoveTrailingStop(ulong positionID)
+{
+    string objName = "TrailingStop_" + IntegerToString((int)positionID);
+    if (ObjectFind(0, objName) >= 0)
+    {
+        ObjectDelete(0, objName);
+        logManager.LogMessage("Removed trailing stop line for position ID " + IntegerToString(positionID), LOG_LEVEL_INFO);
+    }
+}
+
+// Existing DrawTrailingStop method
+void TrailingStopManager::DrawTrailingStop(ulong positionID, double newSL)
+{
+    string objName = "TrailingStop_" + IntegerToString((int)positionID);
+    if (ObjectFind(0, objName) < 0)
+    {
+        ObjectCreate(0, objName, OBJ_HLINE, 0, 0, newSL);
+        ObjectSetInteger(0, objName, OBJPROP_COLOR, clrRed);
+        ObjectSetInteger(0, objName, OBJPROP_STYLE, STYLE_DASH);
+        ObjectSetInteger(0, objName, OBJPROP_WIDTH, 1);
+    }
+    else
+    {
+        ObjectSetDouble(0, objName, OBJPROP_PRICE, newSL);
+    }
 }
 
 #endif // __TRAILINGSTOPMANAGER_MQH__
