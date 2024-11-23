@@ -12,12 +12,105 @@
 int ShellExecuteW(int hwnd, string Operation, string File, string Parameters, string Directory, int ShowCmd);
 #import
 
+// Import transaction functions directly into DatabaseManager
+#import "SQLiteWrapper.dll"
+   int BeginTransaction(long dbHandle, char &errmsg[], int errmsgSize);
+   int CommitTransaction(long dbHandle, char &errmsg[], int errmsgSize);
+   int RollbackTransaction(long dbHandle, char &errmsg[], int errmsgSize);
+#import
+
 class CDatabaseManager
 {
 private:
     ulong m_dbHandle;
     string m_dbPath;
     bool m_isConnected; // Track connection status
+
+    // Nested TransactionManager class within CDatabaseManager
+    class CTransactionManager
+    {
+    private:
+        ulong m_dbHandle;
+        bool m_inTransaction; // Track if a transaction is in progress
+
+    public:
+        // Default Constructor
+        CTransactionManager()
+        {
+            m_dbHandle = 0;
+            m_inTransaction = false;
+        }
+
+        // Initialize with dbHandle
+        void Init(ulong dbHandle)
+        {
+            m_dbHandle = dbHandle;
+            m_inTransaction = false;
+        }
+
+        // Begin Transaction
+        bool BeginTransaction()
+        {
+            char errmsg[256];
+            int result = ::BeginTransaction(m_dbHandle, errmsg, sizeof(errmsg));
+            if (result != 0)
+            {
+                PrintFormat("Failed to begin transaction. Error: %s", CharArrayToString(errmsg));
+                return false;
+            }
+            m_inTransaction = true;
+            return true;
+        }
+
+        // Commit Transaction
+        bool CommitTransaction()
+        {
+            if (!m_inTransaction)
+            {
+                Print("No transaction in progress to commit.");
+                return false;
+            }
+
+            char errmsg[256];
+            int result = ::CommitTransaction(m_dbHandle, errmsg, sizeof(errmsg));
+            if (result != 0)
+            {
+                PrintFormat("Failed to commit transaction. Error: %s", CharArrayToString(errmsg));
+                return false;
+            }
+            m_inTransaction = false;
+            return true;
+        }
+
+        // Rollback Transaction
+        bool RollbackTransaction()
+        {
+            if (!m_inTransaction)
+            {
+                Print("No transaction in progress to rollback.");
+                return false;
+            }
+
+            char errmsg[256];
+            int result = ::RollbackTransaction(m_dbHandle, errmsg, sizeof(errmsg));
+            if (result != 0)
+            {
+                PrintFormat("Failed to rollback transaction. Error: %s", CharArrayToString(errmsg));
+                return false;
+            }
+            m_inTransaction = false;
+            return true;
+        }
+
+        // Check if in transaction
+        bool IsInTransaction()
+        {
+            return m_inTransaction;
+        }
+    };
+
+    // Instance of TransactionManager
+    CTransactionManager m_transactionManager;
 
 public:
     // Default Constructor
@@ -53,6 +146,9 @@ public:
             m_isConnected = false;
             return false;
         }
+
+        // Initialize the transaction manager with the dbHandle
+        m_transactionManager.Init(m_dbHandle);
         m_isConnected = true;
         return true;
     }
@@ -62,6 +158,11 @@ public:
     {
         if (m_dbHandle != 0)
         {
+            // If a transaction is in progress, rollback
+            if (m_transactionManager.IsInTransaction())
+            {
+                m_transactionManager.RollbackTransaction();
+            }
             CloseDatabase(m_dbHandle);
             m_dbHandle = 0;
             m_isConnected = false;
@@ -72,6 +173,37 @@ public:
     bool IsConnected()
     {
         return m_isConnected;
+    }
+
+    // Expose transaction manager methods
+    bool BeginTransaction()
+    {
+        if (!IsConnected())
+        {
+            Print("Database is not connected. Cannot begin transaction.");
+            return false;
+        }
+        return m_transactionManager.BeginTransaction();
+    }
+
+    bool CommitTransaction()
+    {
+        if (!IsConnected())
+        {
+            Print("Database is not connected. Cannot commit transaction.");
+            return false;
+        }
+        return m_transactionManager.CommitTransaction();
+    }
+
+    bool RollbackTransaction()
+    {
+        if (!IsConnected())
+        {
+            Print("Database is not connected. Cannot rollback transaction.");
+            return false;
+        }
+        return m_transactionManager.RollbackTransaction();
     }
 
     // Execute SQL query
@@ -202,9 +334,22 @@ public:
         return true;
     }
 
-    // LogTrade method
+    // LogTrade method with transaction handling
     void LogTrade(TradeData &tradeData)
     {
+        if (!IsConnected())
+        {
+            Print("Database is not connected. Cannot log trade.");
+            return;
+        }
+
+        // Begin transaction
+        if (!BeginTransaction())
+        {
+            Print("Failed to begin transaction for logging trade.");
+            return;
+        }
+
         // Sanitize strings for SQL
         string sanitizedReasonEntry = tradeData.reasonEntry;
         string sanitizedReasonExit = tradeData.reasonExit;
@@ -239,12 +384,24 @@ public:
         if (!ExecuteSQLQuery(insertQuery, errorMsg))
         {
             Print("Error inserting trade log to database: " + errorMsg);
+            // Rollback transaction
+            RollbackTransaction();
         }
         else
         {
-            Print("Trade logged to database successfully.");
+            // Commit transaction
+            if (!CommitTransaction())
+            {
+                Print("Failed to commit transaction after logging trade.");
+            }
+            else
+            {
+                Print("Trade logged to database successfully.");
+            }
         }
     }
+
+    // Additional methods can utilize the TransactionManager for batch operations
 };
 
 #endif // __DATABASEMANAGER_MQH__
