@@ -3,6 +3,11 @@
 #ifndef __GLOBALDEFINITIONS_MQH__
 #define __GLOBALDEFINITIONS_MQH__
 
+// Market condition constants
+#define MARKET_CONDITION_UNKNOWN        0
+#define MARKET_CONDITION_CONSOLIDATING  1
+#define MARKET_CONDITION_TRENDING       2
+
 #include "LogDefinitions.mqh"
 #include "LogHelper.mqh"
 

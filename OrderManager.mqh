@@ -7,7 +7,10 @@
 #include "Logger.mqh"
 #include "DataStructures.mqh"
 #include "GlobalVariables.mqh"
-#include "Utils.mqh"  // Include Utils to access utility functions
+#include "Utils.mqh"
+
+// Externally defined instances
+extern CLogManager logManager;
 
 class OrderManager
 {
@@ -16,22 +19,22 @@ private:
     int MagicNumber;
     int Slippage;
 
-    // Add private methods if necessary
+    // Private methods
     bool CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double slPrice, double tpPrice, double entryPrice);
 
 public:
-    // Constructor without pointers
+    // Constructor
     OrderManager(int magicNumber, int slippage)
     {
-        this.MagicNumber = magicNumber;
-        this.Slippage = slippage;
+        MagicNumber = magicNumber;
+        Slippage = slippage;
         trade.SetExpertMagicNumber(MagicNumber);
         trade.SetDeviationInPoints(Slippage);
     }
 
     ~OrderManager() {}
 
-    // Updated OpenOrder method to include errorCode and errorDescription
+    // Updated OpenOrder method to include new parameters
     bool OpenOrder(ENUM_ORDER_TYPE orderType,
                    double lotSize,
                    double entryPrice,
@@ -40,6 +43,10 @@ public:
                    string reason,
                    double atrValue,
                    double wprValue,
+                   double adxValue,
+                   double pivotPoint, double resistance1, double support1,
+                   double highVolumeLevel, double lowVolumeLevel,
+                   string strategyUsed,
                    OpenPositionData &newPosition,
                    uint &errorCode,
                    string &errorDescription);
@@ -51,7 +58,6 @@ public:
 // Implementation of CheckStopLossAndTakeProfit
 bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double slPrice, double tpPrice, double entryPrice)
 {
-    // Implementation of the function
     double minStopLevelPoints = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
     if (minStopLevelPoints == 0)
         minStopLevelPoints = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL);
@@ -59,10 +65,13 @@ bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double 
     double slDistance = 0.0;
     double tpDistance = 0.0;
 
-    if (orderType == ORDER_TYPE_BUY) {
+    if (orderType == ORDER_TYPE_BUY)
+    {
         slDistance = (entryPrice - slPrice) / _Point;
         tpDistance = (tpPrice - entryPrice) / _Point;
-    } else if (orderType == ORDER_TYPE_SELL) {
+    }
+    else if (orderType == ORDER_TYPE_SELL)
+    {
         slDistance = (slPrice - entryPrice) / _Point;
         tpDistance = (entryPrice - tpPrice) / _Point;
     }
@@ -70,7 +79,8 @@ bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double 
     slDistance = MathAbs(slDistance);
     tpDistance = MathAbs(tpDistance);
 
-    if (slDistance < minStopLevelPoints || tpDistance < minStopLevelPoints) {
+    if (slDistance < minStopLevelPoints || tpDistance < minStopLevelPoints)
+    {
         logManager.LogMessage("SL or TP too close to price. Minimum stop level: " + DoubleToString(minStopLevelPoints, _Digits), LOG_LEVEL_ERROR);
         return false;
     }
@@ -79,7 +89,7 @@ bool OrderManager::CheckStopLossAndTakeProfit(ENUM_ORDER_TYPE orderType, double 
     return true;
 }
 
-// Updated OpenOrder method with error handling
+// Implementation of OpenOrder
 bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
                              double lotSize,
                              double entryPrice,
@@ -88,6 +98,10 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
                              string reason,
                              double atrValue,
                              double wprValue,
+                             double adxValue,
+                             double pivotPoint, double resistance1, double support1,
+                             double highVolumeLevel, double lowVolumeLevel,
+                             string strategyUsed,
                              OpenPositionData &newPosition,
                              uint &errorCode,
                              string &errorDescription)
@@ -157,6 +171,13 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
         newPosition.entryTime = TimeCurrent();
         newPosition.atr = atrValue;
         newPosition.wprValue = wprValue;
+        newPosition.adxValue = adxValue; // Store ADX value
+        newPosition.pivotPoint = pivotPoint;
+        newPosition.resistance1 = resistance1;
+        newPosition.support1 = support1;
+        newPosition.highVolumeLevel = highVolumeLevel;
+        newPosition.lowVolumeLevel = lowVolumeLevel;
+        newPosition.strategyUsed = strategyUsed;
         newPosition.lotSize = lotSize;
         newPosition.reasonEntry = reason;
         newPosition.date = TimeToString(newPosition.entryTime, TIME_DATE);
@@ -191,6 +212,18 @@ bool OrderManager::OpenOrder(ENUM_ORDER_TYPE orderType,
 
         return false;
     }
+}
+
+bool OrderManager::CloseOrder(ulong positionID)
+{
+    // Implement CloseOrder logic if needed
+    return true;
+}
+
+bool OrderManager::ModifyOrder(ulong positionID, double newSL, double newTP)
+{
+    // Implement ModifyOrder logic if needed
+    return true;
 }
 
 #endif // __ORDERMANAGER_MQH__

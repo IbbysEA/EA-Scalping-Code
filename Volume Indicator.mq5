@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                                VolumeProfile.mq5 |
+//|                        VolumeProfile.mq5                         |
 //|                   Custom Volume Profile Indicator                |
 //+------------------------------------------------------------------+
 #property indicator_separate_window

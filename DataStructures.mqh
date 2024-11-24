@@ -1,4 +1,3 @@
-// DataStructures.mqh
 #ifndef __DATASTRUCTURES_MQH__
 #define __DATASTRUCTURES_MQH__
 
@@ -12,8 +11,15 @@ struct OpenPositionData
    datetime entryTime;
    double atr;
    double wprValue;        // Williams %R value
+   double adxValue;        // ADX value
+   double pivotPoint;      // Pivot Point value
+   double resistance1;     // R1
+   double support1;        // S1
+   double highVolumeLevel; // High Volume Level
+   double lowVolumeLevel;  // Low Volume Level
    double lotSize;
    string reasonEntry;
+   string strategyUsed;    // Strategy used for the trade
    string date;
    string time;
    double currentStopLoss; // Field to track current Stop Loss
@@ -21,7 +27,7 @@ struct OpenPositionData
    int profitLevelReached; // Field to track profit levels reached
    bool trailingStopActivated;       // Indicates if trailing stop was activated
    double profitLevelAtTrailingStop; // Stores profit level at trailing stop activation
-   bool isLogged;                    // New field to indicate if the position has been logged
+   bool isLogged;                    // Field to indicate if the position has been logged
 };
 
 struct TradeData
@@ -40,10 +46,17 @@ struct TradeData
    string reasonEntry;
    string reasonExit;
    double profitLoss;
-   double swap;               // Added field for swap
-   double commission;         // Added field for commission
+   double swap;               // Swap
+   double commission;         // Commission
    double atr;
    double wprValue;           // Williams %R value
+   double adxValue;           // ADX value
+   double pivotPoint;         // Pivot Point value
+   double resistance1;        // R1
+   double support1;           // S1
+   double highVolumeLevel;    // High Volume Level
+   double lowVolumeLevel;     // Low Volume Level
+   string strategyUsed;       // Strategy used for the trade
    string remarks;
 };
 

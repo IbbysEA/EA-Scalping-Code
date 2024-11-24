@@ -1,7 +1,7 @@
-//+------------------------------------------------------------------+
-//|                      PositionTracker.mqh                         |
-//|        Manages tracking of open and closed positions             |
-//+------------------------------------------------------------------+
+// PositionTracker.mqh
+
+#ifndef __POSITIONTRACKER_MQH__
+#define __POSITIONTRACKER_MQH__
 
 #include <Trade\Trade.mqh>
 #include "DataStructures.mqh"
@@ -16,9 +16,6 @@
 extern CLogManager    logManager;
 extern CDatabaseManager dbManager;
 extern CTrade         trade;
-
-// Removed extern int MagicNumber;
-// Removed extern int Slippage;
 
 class PositionTracker
 {
@@ -67,9 +64,7 @@ private:
     void LogTrade(TradeData &tradeData);
 };
 
-//+------------------------------------------------------------------+
-//| Implementation of PositionTracker methods                        |
-//+------------------------------------------------------------------+
+// Implementation of PositionTracker methods
 
 void PositionTracker::AddPosition(const OpenPositionData &positionData)
 {
@@ -183,32 +178,11 @@ ulong PositionTracker::FindClosingDealForPosition(ulong positionID)
                 ENUM_DEAL_ENTRY dealEntry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
                 if (dealEntry == DEAL_ENTRY_OUT || dealEntry == DEAL_ENTRY_OUT_BY)
                 {
-                    // When a closing deal is found
-                    if (logManager.ShouldLog(LOG_LEVEL_DEBUG, LOG_CAT_TRADE_EXECUTION))
-                    {
-                        string logMsg = "Found closing deal: dealTicket=" + IntegerToString(dealTicket) +
-                                        " for positionID=" + IntegerToString(positionID);
-                        LOG_MESSAGE(LOG_LEVEL_DEBUG, LOG_CAT_TRADE_EXECUTION, logMsg);
-                    }
+                    // Closing deal found
                     return dealTicket;
                 }
             }
         }
-        else
-        {
-            // When failed to select deal ticket
-            if (logManager.ShouldLog(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION))
-            {
-                string logMsg = "Failed to select dealTicket=" + IntegerToString(dealTicket);
-                LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION, logMsg);
-            }
-        }
-    }
-    // When no closing deal is found
-    if (logManager.ShouldLog(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION))
-    {
-        string logMsg = "No closing deal found for positionID=" + IntegerToString(positionID);
-        LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION, logMsg);
     }
     return 0; // No closing deal found
 }
@@ -231,17 +205,12 @@ ulong PositionTracker::FindOpeningDealForPosition(ulong positionID)
                 ENUM_DEAL_ENTRY dealEntry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
                 if (dealEntry == DEAL_ENTRY_IN)
                 {
-                    LOG_MESSAGE(LOG_LEVEL_DEBUG, LOG_CAT_TRADE_EXECUTION, "Found opening deal: dealTicket=" + IntegerToString(dealTicket) + " for positionID=" + IntegerToString(positionID));
+                    // Opening deal found
                     return dealTicket;
                 }
             }
         }
-        else
-        {
-            LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION, "Failed to select dealTicket=" + IntegerToString(dealTicket));
-        }
     }
-    LOG_MESSAGE(LOG_LEVEL_WARNING, LOG_CAT_TRADE_EXECUTION, "No opening deal found for positionID=" + IntegerToString(positionID));
     return 0; // No opening deal found
 }
 
@@ -269,8 +238,6 @@ ulong PositionTracker::FindLastDealForPosition(ulong positionID)
 
 void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
 {
-    // Full implementation of LogClosedTrade method
-
     // Check if the positionID has already been logged
     if (IsPositionLogged(positionID))
     {
@@ -336,6 +303,13 @@ void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
         tradeData.reasonExit = GetReasonExitString(reason);  // Use function from Utils.mqh
         tradeData.atr = 0.0;       // ATR not available
         tradeData.wprValue = 0.0;  // WPR not available
+        tradeData.adxValue = 0.0;  // ADX not available
+        tradeData.pivotPoint = 0.0;
+        tradeData.resistance1 = 0.0;
+        tradeData.support1 = 0.0;
+        tradeData.highVolumeLevel = 0.0;
+        tradeData.lowVolumeLevel = 0.0;
+        tradeData.strategyUsed = ""; // Strategy not available
         tradeData.remarks = "Entry data not found; reconstructed from deals";
 
         AddLoggedPosition(positionID);
@@ -371,6 +345,13 @@ void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
         // Log additional relevant data
         tradeData.atr = entryData.atr;               // ATR from open position
         tradeData.wprValue = entryData.wprValue;     // Williams %R from open position
+        tradeData.adxValue = entryData.adxValue;     // ADX value
+        tradeData.pivotPoint = entryData.pivotPoint;
+        tradeData.resistance1 = entryData.resistance1;
+        tradeData.support1 = entryData.support1;
+        tradeData.highVolumeLevel = entryData.highVolumeLevel;
+        tradeData.lowVolumeLevel = entryData.lowVolumeLevel;
+        tradeData.strategyUsed = entryData.strategyUsed;
 
         ENUM_DEAL_REASON reason = (ENUM_DEAL_REASON)HistoryDealGetInteger(closingDealTicket, DEAL_REASON);
         tradeData.reasonExit = GetReasonExitString(reason);  // Use function from Utils.mqh
@@ -400,16 +381,17 @@ void PositionTracker::LogClosedTrade(ulong positionID, ulong closingDealTicket)
 
 void PositionTracker::LogTrade(TradeData &tradeData)
 {
-    // Full implementation of LogTrade method
-
     // Sanitize strings for SQL
     string sanitizedReasonEntry = SanitizeForSQL(tradeData.reasonEntry);
     string sanitizedReasonExit = SanitizeForSQL(tradeData.reasonExit);
     string sanitizedRemarks = SanitizeForSQL(tradeData.remarks);
+    string sanitizedStrategyUsed = SanitizeForSQL(tradeData.strategyUsed);
 
-    // Prepare SQL INSERT statement without TradeID
+    // Prepare SQL INSERT statement including new fields
     string insertQuery = "INSERT INTO trades (EntryDate, EntryTime, ExitDate, ExitTime, Symbol, TradeType, EntryPrice, ExitPrice, "
-                         "ReasonEntry, ReasonExit, ProfitLoss, Swap, Commission, ATR, WPRValue, Duration, LotSize, Remarks) VALUES (" +
+                         "ReasonEntry, ReasonExit, ProfitLoss, Swap, Commission, ATR, WPRValue, ADXValue, "
+                         "PivotPoint, Resistance1, Support1, HighVolumeLevel, LowVolumeLevel, StrategyUsed, "
+                         "Duration, LotSize, Remarks) VALUES (" +
                          "'" + tradeData.entryDate + "'," +
                          "'" + tradeData.entryTime + "'," +
                          "'" + tradeData.exitDate + "'," +
@@ -421,10 +403,17 @@ void PositionTracker::LogTrade(TradeData &tradeData)
                          "'" + sanitizedReasonEntry + "'," +
                          "'" + sanitizedReasonExit + "'," +
                          DoubleToString(tradeData.profitLoss, 2) + "," +
-                         DoubleToString(tradeData.swap, 2) + "," +           // Include swap
-                         DoubleToString(tradeData.commission, 2) + "," +    // Include commission
+                         DoubleToString(tradeData.swap, 2) + "," +
+                         DoubleToString(tradeData.commission, 2) + "," +
                          DoubleToString(tradeData.atr, _Digits) + "," +
                          DoubleToString(tradeData.wprValue, 2) + "," +
+                         DoubleToString(tradeData.adxValue, 2) + "," +
+                         DoubleToString(tradeData.pivotPoint, _Digits) + "," +
+                         DoubleToString(tradeData.resistance1, _Digits) + "," +
+                         DoubleToString(tradeData.support1, _Digits) + "," +
+                         DoubleToString(tradeData.highVolumeLevel, _Digits) + "," +
+                         DoubleToString(tradeData.lowVolumeLevel, _Digits) + "," +
+                         "'" + sanitizedStrategyUsed + "'," +
                          IntegerToString(tradeData.duration) + "," +
                          DoubleToString(tradeData.lotSize, 2) + "," +
                          "'" + sanitizedRemarks + "');";
@@ -612,3 +601,6 @@ void PositionTracker::CloseAllPositions()
         LOG_MESSAGE(LOG_LEVEL_DEBUG, LOG_CAT_PROFILING, logMsg);
     }
 }
+
+
+#endif // __POSITIONTRACKER_MQH__

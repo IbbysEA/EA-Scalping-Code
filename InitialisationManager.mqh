@@ -3,13 +3,16 @@
 #ifndef __INITIALISATIONMANAGER_MQH__
 #define __INITIALISATIONMANAGER_MQH__
 
-#include "GlobalVariables.mqh"  // Include to access global 'dbManager' and 'logManager'
+#include "GlobalDefinitions.mqh"  // Include to access global constants
+#include "GlobalVariables.mqh"    // Include to access global 'dbManager' and 'logManager'
 #include "TimeManager.mqh"
 #include "IndicatorManager.mqh"
 #include "TrailingStopManager.mqh"
 #include "OrderManager.mqh"
 #include "PositionTracker.mqh"
 #include "RiskManager.mqh"
+
+// Remove #pragma once as per your request
 
 class InitialisationManager
 {
@@ -29,14 +32,13 @@ public:
         OrderManager &om,
         PositionTracker &pt,
         RiskManager &rm,
-        // Input parameters for logging
+        // Input parameters
         LogLevelEnum logLevelParam,
         uint logCategoriesParam,
         bool enableConsoleLoggingParam,
         bool enableDatabaseLoggingParam,
         bool enableFileLoggingParam,
         string logFilePathParam,
-        // Input parameters for other settings
         string filesDirParam,
         string dbPathParam,
         int cooldownTimeParam,
@@ -46,7 +48,7 @@ public:
         int tradingStartHourParam,
         int tradingEndHourParam,
         bool closeTradesBeforeEndOfDayParam,
-        double &profitLevelsParam[],  // Pass array by reference
+        double &profitLevelsParam[],  // Arrays must be passed by reference
         int numProfitLevelsParam,
         ENUM_TIMEFRAMES atrTimeframeParam,
         int atrPeriodParam,
@@ -57,25 +59,24 @@ public:
         ENUM_MA_METHOD trendMAMethodParam,
         ENUM_TIMEFRAMES volumeProfileTimeframeParam,
         int volumeProfilePeriodParam,
+        ENUM_TIMEFRAMES adxTimeframeParam,
+        int adxPeriodParam,
+        ENUM_TIMEFRAMES pivotTimeframeParam,
         uint timerIntervalMillisecondsParam,
-        // Additional parameters as needed
-        string symbolParam,
+        string symbolParam,    // Passed by reference
         bool &tradeAllowedParam
     );
 
-    // Deinitialization method
+    // Deinitialization method remains unchanged
     void DeinitializeAll(
         PositionTracker &pt,
         const int reason
     );
-
-private:
-    // Private member variables if needed
-
-    // Private helper methods if needed
 };
 
-// Implementation of InitializeAll
+//+------------------------------------------------------------------+
+//| Implementation of InitializeAll                                  |
+//+------------------------------------------------------------------+
 bool InitialisationManager::InitializeAll(
     // Parameters as above
     TimeManager &tm,
@@ -84,6 +85,7 @@ bool InitialisationManager::InitializeAll(
     OrderManager &om,
     PositionTracker &pt,
     RiskManager &rm,
+    // Input parameters
     LogLevelEnum logLevelParam,
     uint logCategoriesParam,
     bool enableConsoleLoggingParam,
@@ -99,7 +101,7 @@ bool InitialisationManager::InitializeAll(
     int tradingStartHourParam,
     int tradingEndHourParam,
     bool closeTradesBeforeEndOfDayParam,
-    double &profitLevelsParam[],  // Pass array by reference
+    double &profitLevelsParam[],
     int numProfitLevelsParam,
     ENUM_TIMEFRAMES atrTimeframeParam,
     int atrPeriodParam,
@@ -110,8 +112,11 @@ bool InitialisationManager::InitializeAll(
     ENUM_MA_METHOD trendMAMethodParam,
     ENUM_TIMEFRAMES volumeProfileTimeframeParam,
     int volumeProfilePeriodParam,
+    ENUM_TIMEFRAMES adxTimeframeParam,
+    int adxPeriodParam,
+    ENUM_TIMEFRAMES pivotTimeframeParam,
     uint timerIntervalMillisecondsParam,
-    string symbolParam,
+    string symbolParam,    // Passed by reference
     bool &tradeAllowedParam
 )
 {
@@ -152,7 +157,11 @@ bool InitialisationManager::InitializeAll(
             // Trend Indicator parameters
             trendTimeframeParam, trendMAPeriodParam, trendMAMethodParam,
             // Volume Profile Indicator parameters
-            volumeProfileTimeframeParam, volumeProfilePeriodParam
+            volumeProfileTimeframeParam, volumeProfilePeriodParam,
+            // ADX parameters
+            adxTimeframeParam, adxPeriodParam,
+            // Pivot Point parameters
+            pivotTimeframeParam
         ))
     {
         LOG_MESSAGE(LOG_LEVEL_ERROR, LOG_CAT_AGGREGATED_ERRORS, "Failed to initialize indicators.");
@@ -175,7 +184,7 @@ bool InitialisationManager::InitializeAll(
     }
 
     // Initialize timer for regular updates
-    EventSetMillisecondTimer(timerIntervalMillisecondsParam);
+    EventSetMillisecondTimer((int)timerIntervalMillisecondsParam);
 
     // Initialize logging and database
     LOG_MESSAGE(LOG_LEVEL_INFO, LOG_CAT_INITIALIZATION, "Initializing EA and preparing log file...");
@@ -194,7 +203,9 @@ bool InitialisationManager::InitializeAll(
     return true;
 }
 
-// Implementation of DeinitializeAll
+//+------------------------------------------------------------------+
+//| Implementation of DeinitializeAll                                |
+//+------------------------------------------------------------------+
 void InitialisationManager::DeinitializeAll(
     PositionTracker &pt,
     const int reason

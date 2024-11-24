@@ -5,13 +5,13 @@
 class IndicatorBase
 {
 protected:
-    string      m_symbol;
+    string m_symbol;
     ENUM_TIMEFRAMES m_timeframe;
-    int         m_handle;
+    int m_handle;
 
 public:
     // Constructor
-    IndicatorBase(string symbol, ENUM_TIMEFRAMES timeframe)
+    IndicatorBase(string symbol, ENUM_TIMEFRAMES timeframe)  // Passed by value
     {
         m_symbol    = symbol;
         m_timeframe = timeframe;
